@@ -8,7 +8,7 @@ Instead of using Garry's Mod's throttled _(<1mb/s!)_ and already-polluted networ
 
 By default, Express uses a free-forever public API provided by CFC Servers, but anyone can easily host their own!
 
-The Express Service is a Cloudflare Workers project, meaning that all of the code runs on Cloudflare's Edge servers.
+[The Express Service](https://github.com/CFC-Servers/gm_express_service) is a Cloudflare Workers project, meaning that all of the code runs on Cloudflare's Edge servers.
 All data is stored using Cloudflare's K/V system - an ultra low-latency key-value storage tool that enables Express to send large chunks of data as quickly as your internet connection will allow.
 
 If you'd like to host your own Service, just click this button!
