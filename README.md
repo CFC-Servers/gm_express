@@ -18,8 +18,8 @@ If you'd like to host your own Service, just click this button!
 **Note:** You'll also need to update the `express_domain` convar to whatever your new domain is. By default it'll probably look like: `gmod-express.<your cloudflare username>.workers.dev`. _(Don't include the protocol, just the raw domain)_
 
 ## Requirements
- - @thelastpenguin's [gm_pon](https://github.com/CFC-Servers/gm_pon)
  - [gm_playerload](https://github.com/CFC-Servers/gm_playerload)
+ - [gm_pon](https://github.com/CFC-Servers/gm_pon) by [@thelastpenguin](https://github.com/thelastpenguin)
 
 ## Usage
 
