@@ -27,7 +27,12 @@ If you'd like to host your own Service, just click this button!
 ```lua
 -- Server
 local data = ents.GetAll()
+
 express.Broadcast( "all_ents", data )
+-- or
+express.Send( "all_ents", data, player.GetAll()[1] )
+
+
 
 -- Client
 express.Listen( "all_ents", function( data )
