@@ -1,5 +1,15 @@
-hook.Add( "InitPostEntity", "Express_Register", function()
-    http.Fetch( Express:makeURL() .. "/register", function( body, _, _, code )
+require( "playerload" )
+util.AddNetworkString( "express_access" )
+
+function Express:Broadcast( data )
+    self:Send( data, player.GetAll() )
+end
+
+hook.Add( "PlayerConnect", "Express_Register", function()
+    hook.Remove( "PlayerConnect", "Express_Register" )
+    local url = Express:makeBaseURL() .. "/register"
+
+    http.Fetch( url, function( body, _, _, code )
         if code ~= 200 then error( body ) end
 
         local response = util.JSONToTable( body )
@@ -9,10 +19,11 @@ hook.Add( "InitPostEntity", "Express_Register", function()
 
         Express.access = response.server
         Express._clientAccess = response.client
-    end )
+    end, error, Express.headers )
 end )
 
 hook.Add( "PlayerFullLoad", "Express_Access", function( ply )
+    print( "Sending client access to " .. ply:Nick() )
     net.Start( "express_access" )
     net.WriteString( Express._clientAccess )
     net.Send( ply )
