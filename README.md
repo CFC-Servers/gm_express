@@ -14,7 +14,7 @@ local data = ents.GetAll()
 Express:Broadcast( "all_ents", data )
 
 -- Client
-Espress:Listen( "all_ents", function( data )
+Express:Listen( "all_ents", function( data )
     print( "Got " .. #data .. " ents!" )
 end )
 ```
