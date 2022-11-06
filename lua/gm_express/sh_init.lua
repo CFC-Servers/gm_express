@@ -6,6 +6,7 @@ if SERVER then util.AddNetworkString( "express" ) end
 express = {}
 express._listeners = {}
 express._protocol = "http"
+express._sendCache = {}
 express.headers = { ["Content-Type"] = "application/json" }
 express.domain = CreateConVar(
     "express_domain", "gmod.express", FCVAR_ARCHIVE + FCVAR_REPLICATED, "The domain of the Express server"
@@ -47,13 +48,22 @@ function express:Get( id, cb )
 end
 
 function express:Put( data, cb )
-    local url = self:makeAccessURL()
+    data = util.Base64Encode( pon.encode( data ) )
+    local hash = util.SHA256( data )
+
+    local cached = self._sendCache[hash]
+    if cached then
+        cb( cached )
+        return
+    end
 
     local success = function( code, body )
         if code >= 200 and code < 300 then
             local response = util.JSONToTable( body )
             assert( response, "Invalid JSON" )
             assert( response.id, "No ID returned" )
+
+            self._sendCache[hash] = response.id
 
             cb( response.id )
         else
@@ -63,11 +73,9 @@ function express:Put( data, cb )
 
     local failure = error
 
-    data = util.Base64Encode( pon.encode( data ) )
-
     HTTP( {
         method = "POST",
-        url = url,
+        url = self:makeAccessURL(),
         headers = self.headers,
         body = util.TableToJSON( { data = data } ),
         success = success,
