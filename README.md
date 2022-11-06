@@ -1,5 +1,5 @@
-# Express
-A lightning-quick networking library for Garry's Mod that allows you to quickly send large amounts of data betwen server/client with ease.
+# ⚡ Express
+A lightning-fast networking library for Garry's Mod that allows you to quickly send large amounts of data betwen server/client with ease.
 
 Seriously, [it's really easy](#Usage)!
 
