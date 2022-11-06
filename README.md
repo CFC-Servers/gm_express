@@ -48,6 +48,6 @@ end )
 ```
 
 ## Interested in using Express?
-This addon ships witha GPLv3 License, so please use it however you'd like according to the License.
+This addon ships with a GPLv3 License, so please use it however you'd like according to the License.
 
 If you'd like to use this addon as a dependency of your own, you may link to this page, or mark it as a Dependency on your Workshop addon: https://steamcommunity.com/sharedfiles/filedetails/?id=2885046932
