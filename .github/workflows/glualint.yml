@@ -1,0 +1,10 @@
+name: GLuaFixer
+
+on:
+  pull_request:
+
+jobs:
+  Lint:
+    uses: FPtje/GLuaFixer/.github/workflows/glualint.yml@master
+    with:
+      config: "https://cfc.gg/configs/gluafixer/glualint.json"
