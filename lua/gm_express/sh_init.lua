@@ -3,23 +3,23 @@ AddCSLuaFile()
 require( "pon" )
 if SERVER then util.AddNetworkString( "express" ) end
 
-Express = {}
-Express._listeners = {}
-Express._protocol = "http"
-Express.headers = { ["Content-Type"] = "application/json" }
-Express.domain = CreateConVar(
+express = {}
+express._listeners = {}
+express._protocol = "http"
+express.headers = { ["Content-Type"] = "application/json" }
+express.domain = CreateConVar(
     "express_domain", "gmod.express", FCVAR_ARCHIVE + FCVAR_REPLICATED, "The domain of the Express server"
 )
 
-function Express:makeBaseURL()
+function express:makeBaseURL()
     return self._protocol .. "://" .. self.domain:GetString()
 end
 
-function Express:makeAccessURL()
+function express:makeAccessURL()
     return self:makeBaseURL() .. "/" .. self.access
 end
 
-function Express:Get( id, cb )
+function express:Get( id, cb )
     local url = self:makeAccessURL() .. "/" .. id
 
     local success = function( body, _, _, code )
@@ -46,7 +46,7 @@ function Express:Get( id, cb )
     http.Fetch( url, success, failure, self.headers )
 end
 
-function Express:Put( data, cb )
+function express:Put( data, cb )
     local url = self:makeAccessURL()
 
     local success = function( code, body )
@@ -75,20 +75,20 @@ function Express:Put( data, cb )
     } )
 end
 
-function Express:Listen( message, cb )
-    self._listeners[string.lower( message )] = cb
+function express.Listen( message, cb )
+    express._listeners[string.lower( message )] = cb
 end
 
-function Express:Call( message, ... )
+function express:Call( message, ... )
     local cb = self._listeners[string.lower( message )]
     if cb then
         cb( ... )
     end
 end
 
-function Express:Send( message, data, plys )
+function express.Send( message, data, plys )
     print( "Sending " .. message )
-    self:Put( data, function( id )
+    express:Put( data, function( id )
         net.Start( "express" )
         net.WriteString( message )
         net.WriteString( id )
@@ -108,8 +108,8 @@ net.Receive( "express", function( _, ply )
 
     print( message, id )
 
-    Express:Get( id, function( data )
-        Express:Call( message, data, ply )
+    express:Get( id, function( data )
+        express:Call( message, data, ply )
     end )
 end )
 
@@ -119,6 +119,6 @@ if SERVER then
     AddCSLuaFile( "cl_init.lua" )
 else
     net.Receive( "express_access", function()
-        Express.access = net.ReadString()
+        express.access = net.ReadString()
     end )
 end

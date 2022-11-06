@@ -11,10 +11,10 @@ Seriously, [it's really easy](#Usage)!
 ```lua
 -- Server
 local data = ents.GetAll()
-Express:Broadcast( "all_ents", data )
+express.Broadcast( "all_ents", data )
 
 -- Client
-Express:Listen( "all_ents", function( data )
+express.Listen( "all_ents", function( data )
     print( "Got " .. #data .. " ents!" )
 end )
 ```

@@ -1,4 +1,4 @@
 net.Receive( "express_access", function()
     print( "Received Express access token" )
-    Express.access = net.ReadString()
+    express.access = net.ReadString()
 end )
