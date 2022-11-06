@@ -18,8 +18,8 @@ If you'd like to host your own Service, just click this button!
 **Note:** You'll also need to update the `express_domain` convar to whatever your new domain is. By default it'll probably look like: `gmod-express.<your cloudflare username>.workers.dev`. _(Don't include the protocol, just the raw domain)_
 
 ## Requirements
+ - @thelastpenguin's [gm_pon](https://github.com/CFC-Servers/gm_pon)
  - [gm_playerload](https://github.com/CFC-Servers/gm_playerload)
- - [gm_pon](https://github.com/CFC-Servers/gm_pon)
 
 ## Usage
 
@@ -50,4 +50,6 @@ end )
 ## Interested in using Express?
 This addon ships with a GPLv3 License, so please use it however you'd like according to the License.
 
-If you'd like to use this addon as a dependency of your own, you may link to this page, or mark it as a Dependency on your Workshop addon: https://steamcommunity.com/sharedfiles/filedetails/?id=2885046932
+If you'd like to use this addon as a dependency of your own, you may link to this page, or mark it as a Dependency on your Workshop addon: 
+
+https://steamcommunity.com/sharedfiles/filedetails/?id=2885046932
