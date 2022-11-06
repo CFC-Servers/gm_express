@@ -10,6 +10,7 @@ Seriously, [it's really easy](#Usage)!
 ## Usage
 ```lua
 -- Server
+-- data can be a table of any structure, with any types. The hard size limit is ~50Mb
 local data = ents.GetAll()
 express.Broadcast( "all_ents", data )
 
