@@ -4,7 +4,7 @@ A lightning-fast networking library for Garry's Mod that allows you to quickly s
 Seriously, [it's really easy](#Usage)!
 
 ## Details
-Instead of using Garry's Mod's throttled _(<1mb/s!)_ and already-polluted networking system, Express uses HTTP requests to transmit data between the client and server.
+Instead of using Garry's Mod's throttled _(<1mb/s!)_ and already-polluted networking system, Express uses unthrottled HTTP requests to transmit data between the client and server.
 
 By default, Express uses a free-forever public API provided by CFC Servers, but anyone can easily host their own!
 
