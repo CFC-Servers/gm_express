@@ -46,6 +46,7 @@ end )
 local data = ents.GetAll()
 express.Send( "all_ents", data )
 
+
 -- Server
 express.Listen( "all_ents", function( data, ply )
     print( "Got " .. #data .. " ents from " .. ply:Nick() )
