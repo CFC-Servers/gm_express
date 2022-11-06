@@ -8,20 +8,27 @@ Seriously, [it's really easy](#Usage)!
  - [gm_pon](https://github.com/CFC-Servers/gm_pon)
 
 ## Usage
+
+### Server -> Client(s)
 ```lua
 -- Server
--- data can be a table of any structure, with any types. The hard size limit is ~50Mb
 local data = ents.GetAll()
 express.Broadcast( "all_ents", data )
-
-express.Listen( "all_ents", function( data, ply )
-    print( "Got " .. #data .. " ents!" )
-end )
 
 -- Client
 express.Listen( "all_ents", function( data )
     print( "Got " .. #data .. " ents!" )
-    
-    express.Send( "all_ents", data )
+end )
+```
+
+### Client -> Server
+```lua
+-- Client
+local data = ents.GetAll()
+express.Send( "all_ents", data )
+
+-- Server
+express.Listen( "all_ents", function( data, ply )
+    print( "Got " .. #data .. " ents from " .. ply:Nick() )
 end )
 ```
