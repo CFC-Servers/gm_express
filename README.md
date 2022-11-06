@@ -1,5 +1,5 @@
 # 🚄 Express
-A lightning-fast networking library for Garry's Mod that allows you to quickly send large amounts of data betwen server/client with ease.
+A lightning-fast networking library for Garry's Mod that allows you to quickly send large amounts of data between server/client with ease.
 
 Seriously, [it's really easy](#Usage)!
 
@@ -14,8 +14,14 @@ Seriously, [it's really easy](#Usage)!
 local data = ents.GetAll()
 express.Broadcast( "all_ents", data )
 
+express.Listen( "all_ents", function( data, ply )
+    print( "Got " .. #data .. " ents!" )
+end )
+
 -- Client
 express.Listen( "all_ents", function( data )
     print( "Got " .. #data .. " ents!" )
+    
+    express.Send( "all_ents", data )
 end )
 ```
