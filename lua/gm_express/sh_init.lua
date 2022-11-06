@@ -4,9 +4,9 @@ require( "pon" )
 if SERVER then util.AddNetworkString( "express" ) end
 
 express = {}
+express._sendCache = {}
 express._listeners = {}
 express._protocol = "http"
-express._sendCache = {}
 express.headers = { ["Content-Type"] = "application/json" }
 express.domain = CreateConVar(
     "express_domain", "gmod.express", FCVAR_ARCHIVE + FCVAR_REPLICATED, "The domain of the Express server"
@@ -95,7 +95,6 @@ function express:Call( message, ... )
 end
 
 function express.Send( message, data, plys )
-    print( "Sending " .. message )
     express:Put( data, function( id )
         net.Start( "express" )
         net.WriteString( message )
