@@ -23,7 +23,6 @@ hook.Add( "PlayerConnect", "Express_Register", function()
 end )
 
 hook.Add( "PlayerFullLoad", "Express_Access", function( ply )
-    print( "Sending client access to " .. ply:Nick() )
     net.Start( "express_access" )
     net.WriteString( express._clientAccess )
     net.Send( ply )
