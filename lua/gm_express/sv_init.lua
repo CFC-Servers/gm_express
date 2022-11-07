@@ -1,8 +1,8 @@
 require( "playerload" )
 util.AddNetworkString( "express_access" )
 
-function express.Broadcast( message, data )
-    express:Send( message, data, player.GetAll() )
+function express.Broadcast( message, data, onProof )
+    express:Send( message, data, player.GetAll(), onProof )
 end
 
 hook.Add( "PlayerConnect", "Express_Register", function()
