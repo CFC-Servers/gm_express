@@ -10,7 +10,7 @@ Doing it this way comes with a number of practical benefits:
  - 📬 These messages don't run on the main thread, meaning it won't block networking/physics/lua
  - 💪 A dramatic increase to maximum message size (~100mb, compared to the `net` library's 64kb limit)
  - 🏎️ Big improvements to speed in many circumstances
- - 🤙 It's simple! You don't have to worry about serializing, compressing, and splitting your table up. Just send a table!
+ - 🤙 It's simple! You don't have to worry about serializing, compressing, and splitting your table up. Just send the table!
 
 By default, Express uses a free-forever public API provided by CFC Servers, but anyone can easily host their own!
 <details>
