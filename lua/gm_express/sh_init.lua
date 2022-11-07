@@ -87,6 +87,10 @@ function express.Listen( message, cb )
     express._listeners[string.lower( message )] = cb
 end
 
+function express.RemoveListener( message )
+    express._listeners[string.lower( message )] = nil
+end
+
 function express:Call( message, ... )
     local cb = self._listeners[string.lower( message )]
     if cb then
