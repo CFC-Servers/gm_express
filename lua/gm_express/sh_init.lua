@@ -1,7 +1,10 @@
 AddCSLuaFile()
 
 require( "pon" )
-if SERVER then util.AddNetworkString( "express" ) end
+if SERVER then
+    util.AddNetworkString( "express" )
+    util.AddNetworkString( "express_proof" )
+end
 
 express = {}
 express._sendCache = {}
@@ -78,12 +81,14 @@ function express:_get( id, cb )
 end
 
 function express:Get( id, cb )
-    if not self.access then
-        print( "Waiting for access", id )
-        table.insert( self._waitingForAccess, function()
-            self:Get( id, cb )
-        end )
+    if self.access then
+        return self:_get( id, cb )
     end
+
+    print( "Waiting for access", id )
+    table.insert( self._waitingForAccess, function()
+        self:_get( id, cb )
+    end )
 end
 
 function express:Put( data, cb )
@@ -169,6 +174,7 @@ net.Receive( "express", function( _, ply )
 
         if needsProof then
             net.Start( "express_proof" )
+            print( "Sending proof for " .. id, hash )
             net.WriteString( hash )
 
             if CLIENT then
@@ -181,10 +187,13 @@ net.Receive( "express", function( _, ply )
 end )
 
 net.Receive( "express_proof", function( _, ply )
+    print( "Got proof", ply )
     local prefix = ply and ply:SteamID64() .. "-" or ""
     local hash = prefix .. net.ReadString()
+    print( "Hash is " .. hash )
 
     local cb = express._awaitingProof[hash]
+    print( "Callback is " .. tostring( cb ) )
     if cb then
         cb( ply )
         express._awaitingProof[hash] = nil
