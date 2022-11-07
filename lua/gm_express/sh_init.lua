@@ -8,6 +8,7 @@ express._sendCache = {}
 express._listeners = {}
 express._protocol = "http"
 express._awaitingProof = {}
+express._waitingForAccess = {}
 express.headers = { ["Content-Type"] = "application/json" }
 express.domain = CreateConVar(
     "express_domain", "gmod.express", FCVAR_ARCHIVE + FCVAR_REPLICATED, "The domain of the Express server"
@@ -19,6 +20,17 @@ end
 
 function express:makeAccessURL()
     return self:makeBaseURL() .. "/" .. self.access
+end
+
+function express:SetAccess( access )
+    print( "Setting access to " .. access )
+    self.access = access
+
+    for _, v in pairs( self._waitingForAccess ) do
+        v()
+    end
+
+    self._waitingForAccess = {}
 end
 
 function express:setExpected( hash, cb, plys )
@@ -34,10 +46,12 @@ function express:setExpected( hash, cb, plys )
     end
 end
 
-function express:Get( id, cb )
+function express:_get( id, cb )
     local url = self:makeAccessURL() .. "/" .. id
 
     local success = function( body, _, _, code )
+        print( "express: got " .. id .. " with code " .. code )
+
         if code >= 200 and code < 300 then
             local data = util.JSONToTable( body )
             assert( data, "Invalid JSON" )
@@ -61,6 +75,15 @@ function express:Get( id, cb )
     local failure = error
 
     http.Fetch( url, success, failure, self.headers )
+end
+
+function express:Get( id, cb )
+    if not self.access then
+        print( "Waiting for access", id )
+        table.insert( self._waitingForAccess, function()
+            self:Get( id, cb )
+        end )
+    end
 end
 
 function express:Put( data, cb )
@@ -122,7 +145,7 @@ function express.Send( message, data, plys, onProof )
         net.WriteBool( onProof ~= nil )
 
         if onProof then
-            express:setExpected( plys, hash, onProof )
+            express:setExpected( hash, onProof, plys )
         end
 
         if CLIENT then
@@ -174,6 +197,6 @@ if SERVER then
     AddCSLuaFile( "cl_init.lua" )
 else
     net.Receive( "express_access", function()
-        express.access = net.ReadString()
+        express:SetAccess( net.ReadString() )
     end )
 end

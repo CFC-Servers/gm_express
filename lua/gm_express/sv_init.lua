@@ -5,8 +5,7 @@ function express.Broadcast( message, data, onProof )
     express:Send( message, data, player.GetAll(), onProof )
 end
 
-hook.Add( "PlayerConnect", "Express_Register", function()
-    hook.Remove( "PlayerConnect", "Express_Register" )
+function express:Register()
     local url = express:makeBaseURL() .. "/register"
 
     http.Fetch( url, function( body, _, _, code )
@@ -20,6 +19,17 @@ hook.Add( "PlayerConnect", "Express_Register", function()
         express.access = response.server
         express._clientAccess = response.client
     end, error, express.headers )
+
+    if player.GetCount() == 0 then return end
+
+    net.Start( "express_access" )
+    net.WriteString( express._clientAccess )
+    net.Broadcast()
+end
+
+hook.Add( "PlayerConnect", "Express_Register", function()
+    hook.Remove( "PlayerConnect", "Express_Register" )
+    express:Register()
 end )
 
 hook.Add( "PlayerFullLoad", "Express_Access", function( ply )
