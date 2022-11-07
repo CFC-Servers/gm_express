@@ -7,6 +7,7 @@ express = {}
 express._sendCache = {}
 express._listeners = {}
 express._protocol = "http"
+express._awaitingProof = {}
 express.headers = { ["Content-Type"] = "application/json" }
 express.domain = CreateConVar(
     "express_domain", "gmod.express", FCVAR_ARCHIVE + FCVAR_REPLICATED, "The domain of the Express server"
@@ -20,6 +21,19 @@ function express:makeAccessURL()
     return self:makeBaseURL() .. "/" .. self.access
 end
 
+function express:setExpected( hash, cb, plys )
+    if CLIENT then
+        self._awaitingProof[hash] = cb
+    else
+        if not istable( plys ) then plys = { plys } end
+
+        for _, ply in ipairs( plys ) do
+            local key = ply:SteamID64() .. "-" .. hash
+            self._awaitingProof[key] = cb
+        end
+    end
+end
+
 function express:Get( id, cb )
     local url = self:makeAccessURL() .. "/" .. id
 
@@ -30,12 +44,14 @@ function express:Get( id, cb )
             assert( data.data, "No data" )
 
             data = data.data
+            local hash = util.SHA256( data )
+
             data = util.Base64Decode( data )
             assert( data, "Invalid data" )
 
             data = pon.decode( data )
 
-            cb( data )
+            cb( data, hash )
         else
             -- TODO: Handle error
             cb()
@@ -65,7 +81,7 @@ function express:Put( data, cb )
 
             self._sendCache[hash] = response.id
 
-            cb( response.id )
+            cb( response.id, hash )
         else
             error( body )
         end
@@ -98,11 +114,16 @@ function express:Call( message, ... )
     end
 end
 
-function express.Send( message, data, plys )
-    express:Put( data, function( id )
+function express.Send( message, data, plys, onProof )
+    express:Put( data, function( id, hash )
         net.Start( "express" )
         net.WriteString( message )
         net.WriteString( id )
+        net.WriteBool( onProof ~= nil )
+
+        if onProof then
+            express:setExpected( plys, hash, onProof )
+        end
 
         if CLIENT then
             net.SendToServer()
@@ -116,12 +137,35 @@ end
 net.Receive( "express", function( _, ply )
     local message = net.ReadString()
     local id = net.ReadString()
+    local needsProof = net.ReadBool()
 
-    print( message, id )
+    print( message, id, needsProof )
 
-    express:Get( id, function( data )
+    express:Get( id, function( data, hash )
         express:Call( message, data, ply )
+
+        if needsProof then
+            net.Start( "express_proof" )
+            net.WriteString( hash )
+
+            if CLIENT then
+                net.SendToServer()
+            else
+                net.Send( ply )
+            end
+        end
     end )
+end )
+
+net.Receive( "express_proof", function( _, ply )
+    local prefix = ply and ply:SteamID64() .. "-" or ""
+    local hash = prefix .. net.ReadString()
+
+    local cb = express._awaitingProof[hash]
+    if cb then
+        cb( ply )
+        express._awaitingProof[hash] = nil
+    end
 end )
 
 
