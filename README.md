@@ -64,7 +64,7 @@ end )
 #### Server -> Multiple clients with confirmation callback
 ```lua
 -- Server
-local meshData = prop:GetPhysicsObject():GetMesh
+local meshData = prop:GetPhysicsObject():GetMesh()
 local data = { data = data, entIndex = prop:EntIndex() }
 
 -- Will be called after the player successfully downloads the data
