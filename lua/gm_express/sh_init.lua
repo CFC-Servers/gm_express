@@ -7,115 +7,52 @@ if SERVER then
 end
 
 express = {}
-express._sendCache = {}
-express._listeners = {}
+express._receivers = {}
 express._protocol = "http"
 express._awaitingProof = {}
-express._waitingForAccess = {}
 express.headers = { ["Content-Type"] = "application/json" }
 express.domain = CreateConVar(
     "express_domain", "gmod.express", FCVAR_ARCHIVE + FCVAR_REPLICATED, "The domain of the Express server"
 )
 
-function express:makeBaseURL()
-    return self._protocol .. "://" .. self.domain:GetString()
-end
-
-function express:makeAccessURL()
-    return self:makeBaseURL() .. "/" .. self.access
-end
-
-function express:SetAccess( access )
-    print( "Setting access to " .. access )
-    self.access = access
-
-    for _, v in pairs( self._waitingForAccess ) do
-        v()
-    end
-
-    self._waitingForAccess = {}
-end
-
-function express:setExpected( hash, cb, plys )
-    if CLIENT then
-        self._awaitingProof[hash] = cb
-    else
-        if not istable( plys ) then plys = { plys } end
-
-        for _, ply in ipairs( plys ) do
-            local key = ply:SteamID64() .. "-" .. hash
-            self._awaitingProof[key] = cb
-        end
-    end
-end
-
-function express:_get( id, cb )
-    local url = self:makeAccessURL() .. "/" .. id
-
-    local success = function( body, _, _, code )
-        print( "express: got " .. id .. " with code " .. code )
-
-        if code >= 200 and code < 300 then
-            local data = util.JSONToTable( body )
-            assert( data, "Invalid JSON" )
-            assert( data.data, "No data" )
-
-            data = data.data
-            local hash = util.SHA256( data )
-
-            data = util.Base64Decode( data )
-            assert( data, "Invalid data" )
-
-            data = pon.decode( data )
-
-            cb( data, hash )
-        else
-            -- TODO: Handle error
-            cb()
-        end
-    end
-
-    local failure = error
-
-    http.Fetch( url, success, failure, self.headers )
+function express.Receive( message, cb )
+    express._receivers[string.lower( message )] = cb
 end
 
 function express:Get( id, cb )
-    if self.access then
-        return self:_get( id, cb )
+    local url = self:makeAccessURL( id )
+
+    local success = function( body, _, _, code )
+        print( "express: got " .. id .. " with code " .. code )
+        assert( code >= 200 and code < 300, "Invalid status code: " .. code )
+
+        local dataHolder = util.JSONToTable( body )
+        assert( dataHolder, "Invalid JSON" )
+        assert( dataHolder.data, "No data" )
+
+        local b64Data = dataHolder.data
+        local hash = util.SHA256( b64Data )
+        local encodedData = util.Base64Decode( b64Data )
+        assert( encodedData, "Invalid data" )
+
+        local decodedData = pon.decode( encodedData )
+        cb( decodedData, hash )
     end
 
-    print( "Waiting for access", id )
-    table.insert( self._waitingForAccess, function()
-        self:_get( id, cb )
-    end )
+    http.Fetch( url, success, error, self.headers )
 end
 
 function express:Put( data, cb )
-    data = util.Base64Encode( pon.encode( data ) )
-    local hash = util.SHA256( data )
-
-    local cached = self._sendCache[hash]
-    if cached then
-        cb( cached )
-        return
-    end
-
     local success = function( code, body )
-        if code >= 200 and code < 300 then
-            local response = util.JSONToTable( body )
-            assert( response, "Invalid JSON" )
-            assert( response.id, "No ID returned" )
+        print( code, body )
+        assert( code >= 200 and code < 300, "Invalid response code: " .. code )
 
-            self._sendCache[hash] = response.id
+        local response = util.JSONToTable( body )
+        assert( response, "Invalid JSON" )
+        assert( response.id, "No ID returned" )
 
-            cb( response.id, hash )
-        else
-            error( body )
-        end
+        cb( response.id )
     end
-
-    local failure = error
 
     HTTP( {
         method = "POST",
@@ -123,89 +60,63 @@ function express:Put( data, cb )
         headers = self.headers,
         body = util.TableToJSON( { data = data } ),
         success = success,
-        failed = failure
+        failed = error
     } )
 end
 
-function express.Listen( message, cb )
-    express._listeners[string.lower( message )] = cb
-end
-
-function express.RemoveListener( message )
-    express._listeners[string.lower( message )] = nil
-end
-
-function express:Call( message, ... )
-    local cb = self._listeners[string.lower( message )]
-    if cb then
-        cb( ... )
+-- Run express receiver for the given message
+function express:Call( message, ply, data )
+    local cb = self._receivers[string.lower( message )]
+    if not cb then
+        ErorrNoHalt( "No receiver for " .. message )
     end
+
+    if CLIENT then return cb( data ) end
+    if SERVER then return cb( ply, data ) end
 end
 
-function express.Send( message, data, plys, onProof )
-    express:Put( data, function( id, hash )
-        net.Start( "express" )
-        net.WriteString( message )
-        net.WriteString( id )
-        net.WriteBool( onProof ~= nil )
-
-        if onProof then
-            express:setExpected( hash, onProof, plys )
-        end
-
-        if CLIENT then
-            net.SendToServer()
-        else
-            net.Send( plys )
-        end
-        print( "Sent " .. message .. " with ID " .. id )
-    end )
-end
-
-net.Receive( "express", function( _, ply )
+-- Receiver for the "express" net message
+function express.OnMessage( _, ply )
     local message = net.ReadString()
     local id = net.ReadString()
     local needsProof = net.ReadBool()
 
-    print( message, id, needsProof )
+    print( "Received express message: ", message, id, needsProof )
 
-    express:Get( id, function( data, hash )
-        express:Call( message, data, ply )
+    express:_get( id, function( data, hash )
+        express:Call( message, ply, data )
 
         if needsProof then
             net.Start( "express_proof" )
             print( "Sending proof for " .. id, hash )
             net.WriteString( hash )
 
-            if CLIENT then
-                net.SendToServer()
-            else
-                net.Send( ply )
-            end
+            express.shSend( ply )
         end
     end )
-end )
+end
 
-net.Receive( "express_proof", function( _, ply )
-    print( "Got proof", ply )
+-- Receiver for the "express_proof" net message
+function express.OnProof( _, ply )
     local prefix = ply and ply:SteamID64() .. "-" or ""
     local hash = prefix .. net.ReadString()
-    print( "Hash is " .. hash )
 
     local cb = express._awaitingProof[hash]
-    print( "Callback is " .. tostring( cb ) )
     if cb then
         cb( ply )
         express._awaitingProof[hash] = nil
     end
-end )
+end
 
+net.Receive( "express", express.OnMessage )
+net.Receive( "express_proof", express.OnProof )
+
+include( "sh_helpers.lua" )
 
 if SERVER then
     include( "sv_init.lua" )
     AddCSLuaFile( "cl_init.lua" )
 else
-    net.Receive( "express_access", function()
-        express:SetAccess( net.ReadString() )
-    end )
+    include( "cl_init.lua" )
 end
+
