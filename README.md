@@ -26,6 +26,8 @@ Doing it this way comes with a number of practical benefits:
  - 🏎️ Big improvements to speed in many circumstances
  - 🤙 It's simple! You don't have to worry about serializing, compressing, and splitting your table up. Just send the table!
 
+Express works by storing the data you send on Cloudflare's Edge servers. Using Cloudflare workers, KV, and D1, Express can cheaply serve millions of requests and store hundreds of gigabytes per month. Cloudflare's Edge servers offer extremely low-latency requests and data access to every corner of the globe.
+
 By default, Express uses a free-forever public API provided by CFC Servers, but anyone can easily host their own!
 <details>
 <summary>Click here to learn more</summary>
