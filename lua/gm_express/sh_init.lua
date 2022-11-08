@@ -30,7 +30,6 @@ function express:Get( id, cb )
     local url = self:makeAccessURL( id )
 
     local success = function( body, _, _, code )
-        print( "express: got " .. id .. " with code " .. code )
         assert( code >= 200 and code < 300, "Invalid status code: " .. code )
 
         local dataHolder = util.JSONToTable( body )
@@ -49,9 +48,26 @@ function express:Get( id, cb )
     http.Fetch( url, success, error, self.headers )
 end
 
+function express:GetSize( id, cb )
+    local url = self:makeAccessURL( id, "size" )
+
+    local success = function( body, _, _, code )
+        assert( code >= 200 and code < 300, "Invalid status code: " .. code )
+
+        local sizeHolder = util.JSONToTable( body )
+        assert( sizeHolder, "Invalid JSON" )
+
+        local size = sizeHolder.size
+        assert( size, "No size data" )
+
+        cb( tonumber( size ) )
+    end
+
+    http.Fetch( url, success, error, self.headers )
+end
+
 function express:Put( data, cb )
     local success = function( code, body )
-        print( code, body )
         assert( code >= 200 and code < 300, "Invalid response code: " .. code )
 
         local response = util.JSONToTable( body )
@@ -95,20 +111,20 @@ function express.OnMessage( _, ply )
     local message = net.ReadString()
     local id = net.ReadString()
     local needsProof = net.ReadBool()
-    print( "Received express message: ", message, id, needsProof )
 
-    local check = express:CallPreDownload( message, ply, id, needsProof )
-    if check == false then return end
+    -- TODO: Don't GetSize if there aren't any pre-download receivers
+    express:GetSize( id, function( size )
+        local check = express:CallPreDownload( message, ply, id, size, needsProof )
+        if check == false then return end
 
-    express:_get( id, function( data, hash )
-        express:Call( message, ply, data )
+        express:_get( id, function( data, hash )
+            express:Call( message, ply, data )
 
-        if not needsProof then return end
-        net.Start( "express_proof" )
-        print( "Sending proof for " .. id, hash )
-        net.WriteString( hash )
-
-        express.shSend( ply )
+            if not needsProof then return end
+            net.Start( "express_proof" )
+            net.WriteString( hash )
+            express.shSend( ply )
+        end )
     end )
 end
 

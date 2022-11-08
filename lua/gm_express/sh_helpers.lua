@@ -14,20 +14,18 @@ function express:makeBaseURL()
     return self._protocol .. "://" .. self.domain:GetString()
 end
 
-function express:makeAccessURL( suffix )
-    local url = self:makeBaseURL() .. "/" .. self.access
-    if suffix then url = url .. "/" .. suffix end
+function express:makeAccessURL( ... )
+    local url = self:makeBaseURL()
+    local args = { ... }
 
-    return url
+    if #args == 0 then return url end
+    return url .. "/" .. table.concat( args, "/" )
 end
 
 function express:SetAccess( access )
-    print( "Setting access to " .. access )
     self.access = access
 
     local waiting = self._waitingForAccess
-    print( "Processing " .. #waiting .. " messages that were waiting" )
-
     for _, callback in ipairs( waiting ) do
         callback()
     end
@@ -40,7 +38,6 @@ function express:_get( id, cb )
         return self:Get( id, cb )
     end
 
-    print( "Waiting for access", id )
     table.insert( self._waitingForAccess, function()
         self:Get( id, cb )
     end )
@@ -76,6 +73,5 @@ function express:_send( message, data, plys, onProof )
         end
 
         express.shSend( plys )
-        print( "Sent " .. message .. " with ID " .. id )
     end )
 end
