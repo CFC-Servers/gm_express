@@ -16,9 +16,13 @@ express.domain = CreateConVar(
     "express_domain", "gmod.express", FCVAR_ARCHIVE + FCVAR_REPLICATED, "The domain of the Express server"
 )
 
-function express.Receive( message, cb, preDl )
+function express.Receive( message, cb )
     message = string.lower( message )
     express._receivers[message] = cb
+end
+
+function express.ReceivePreDl( message, preDl )
+    message = string.lower( message )
     express._preDlReceivers[message] = preDl
 end
 
