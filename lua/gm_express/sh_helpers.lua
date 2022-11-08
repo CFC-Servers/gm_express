@@ -25,8 +25,11 @@ function express:SetAccess( access )
     print( "Setting access to " .. access )
     self.access = access
 
-    for _, v in pairs( self._waitingForAccess ) do
-        v()
+    local waiting = self._waitingForAccess
+    print( "Processing " .. #waiting .. " messages that were waiting" )
+
+    for _, callback in ipairs( waiting ) do
+        callback()
     end
 
     self._waitingForAccess = {}

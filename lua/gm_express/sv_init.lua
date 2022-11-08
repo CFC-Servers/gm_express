@@ -5,7 +5,16 @@ function express.Broadcast( message, data, onProof )
     express:Send( message, data, player.GetAll(), onProof )
 end
 
-function express:Register()
+function express.Register()
+    -- All stored items expire after a day
+    -- That includes tokens, so we need
+    -- to re-register if we make it this far
+    if not timer.Exists( "Express_Register" ) then
+        local oneDay = 60 * 60 * 24
+        timer.Create( "Express_Register", oneDay, 0, express.Register )
+    end
+
+    express._putCache = {}
     local url = express:makeBaseURL() .. "/register"
 
     http.Fetch( url, function( body, _, _, code )
