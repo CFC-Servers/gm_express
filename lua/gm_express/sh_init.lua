@@ -8,6 +8,7 @@ end
 
 express = {}
 express._receivers = {}
+express._preDlReceivers = {}
 express._protocol = "http"
 express._awaitingProof = {}
 express.headers = { ["Content-Type"] = "application/json" }
@@ -15,8 +16,10 @@ express.domain = CreateConVar(
     "express_domain", "gmod.express", FCVAR_ARCHIVE + FCVAR_REPLICATED, "The domain of the Express server"
 )
 
-function express.Receive( message, cb )
-    express._receivers[string.lower( message )] = cb
+function express.Receive( message, cb, preDl )
+    message = string.lower( message )
+    express._receivers[message] = cb
+    express._preDlReceivers[message] = preDl
 end
 
 function express:Get( id, cb )
@@ -64,7 +67,7 @@ function express:Put( data, cb )
     } )
 end
 
--- Run express receiver for the given message
+-- Run the express receiver for the given message
 function express:Call( message, ply, data )
     local cb = self._receivers[string.lower( message )]
     if not cb then
@@ -75,37 +78,46 @@ function express:Call( message, ply, data )
     if SERVER then return cb( ply, data ) end
 end
 
--- Receiver for the "express" net message
+-- Run the express pre-download receiver for the given message
+function express:CallPreDownload( message, ply, id, needsProof )
+    local cb = self._preDlReceivers[string.lower( message )]
+    if not cb then return end
+
+    if CLIENT then return cb( message, id, needsProof ) end
+    if SERVER then return cb( message, ply, id, needsProof ) end
+end
+
 function express.OnMessage( _, ply )
     local message = net.ReadString()
     local id = net.ReadString()
     local needsProof = net.ReadBool()
-
     print( "Received express message: ", message, id, needsProof )
+
+    local check = express:CallPreDownload( message, ply, id, needsProof )
+    if check == false then return end
 
     express:_get( id, function( data, hash )
         express:Call( message, ply, data )
 
-        if needsProof then
-            net.Start( "express_proof" )
-            print( "Sending proof for " .. id, hash )
-            net.WriteString( hash )
+        if not needsProof then return end
+        net.Start( "express_proof" )
+        print( "Sending proof for " .. id, hash )
+        net.WriteString( hash )
 
-            express.shSend( ply )
-        end
+        express.shSend( ply )
     end )
 end
 
--- Receiver for the "express_proof" net message
 function express.OnProof( _, ply )
+    -- Server prefixes the hash with the player's Steam ID
     local prefix = ply and ply:SteamID64() .. "-" or ""
     local hash = prefix .. net.ReadString()
 
     local cb = express._awaitingProof[hash]
-    if cb then
-        cb( ply )
-        express._awaitingProof[hash] = nil
-    end
+    if not cb then return end
+
+    cb( ply )
+    express._awaitingProof[hash] = nil
 end
 
 net.Receive( "express", express.OnMessage )
