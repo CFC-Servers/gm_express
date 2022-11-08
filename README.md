@@ -5,7 +5,7 @@ Seriously, it's really easy! Take a look:
 ```lua
 -- Server
 local data = file.Read( "huge_data_file.json" )
-express.Broadcast( "stored_data", { data = data })
+express.Broadcast( "stored_data", { data = data } )
 
 -- Client
 express.Receive( "stored_data", function( data )
