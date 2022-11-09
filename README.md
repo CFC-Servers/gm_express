@@ -112,10 +112,10 @@ This function is very similar to `net.Receive`. It attaches a callback function 
 2. **`function callback`**
     - The function to call when data comes through for this message.
     - On <img src="https://user-images.githubusercontent.com/7936439/200705060-b5e57f56-a5a1-4c95-abfa-0d568be0aad6.png" width="15"> **CLIENT**, this callback receives a single parameter:
-        - **`table data`**: The data table send by server
+        - **`table data`**: The data table sent by server
     - On <img src="https://user-images.githubusercontent.com/7936439/200705110-55b19d08-b342-4e94-a7c3-6b45baf98c2b.png" width="15"> **SERVER**, this callback receives two parameters:
         - **`Player ply`**: The player who sent the data
-        - **`table data`**: The data table send by the player
+        - **`table data`**: The data table sent by the player
 
 #### <ins>**Example**</ins>
 Set up a serverside receiver for the `"balls"` message:
@@ -142,12 +142,12 @@ Very much like `express.Receive`, except this callback runs _before_ the `data` 
 2. **`function callback`**
     - The function to call just before downloading the data.
     - On <img src="https://user-images.githubusercontent.com/7936439/200705060-b5e57f56-a5a1-4c95-abfa-0d568be0aad6.png" width="15"> **CLIENT**, this callback receives:
-        - **`string message`**: The name of the message
+        - **`string name`**: The name of the message
         - **`string id`**: The ID of the download _(used to retrieve the data from the API)_
         - **`int size`**: The size (in bytes) of the data
         - **`boolean needsProof`**: A boolean indicating whether or not the sender has requested proof-of-download
     - On <img src="https://user-images.githubusercontent.com/7936439/200705110-55b19d08-b342-4e94-a7c3-6b45baf98c2b.png" width="15"> **SERVER**, this callback receives:
-        - **`string message`**: The name of the message
+        - **`string name`**: The name of the message
         - **`Player ply`**: The player that is sending the data
         - **`string id`**: The ID of the download _(used to retrieve the data from the API)_
         - **`int size`**: The size (in bytes) of the data
@@ -164,11 +164,11 @@ express.Receive( "preferences", function( ply, data )
     ply.preferences = data
 end )
 
-express.ReceivePreDl( "preferences", function( message, ply, _, size, _ )
-    local maxSize = maxMessageSizes[message]
+express.ReceivePreDl( "preferences", function( name, ply, _, size, _ )
+    local maxSize = maxMessageSizes[name]
     if size <= maxSize then return end
     
-    print( ply, "tried to send a", size, "byte", message, "message! Rejecting!" )
+    print( ply, "tried to send a", size, "byte", name, "message! Rejecting!" )
     return false
 end )
 ```
@@ -185,7 +185,7 @@ The <img src="https://user-images.githubusercontent.com/7936439/200705060-b5e57f
     - The name of the message. Think of this just like the name given to `net.Receive`
     - This parameter is case-insensitive, it will be `string.lower`'d
 2. **`table data`**
-    - The table of data to send
+    - The table to send
     - This table can be of any size, in any order, with nearly any data type. The only exception you might care about is `Color` objects not being fully supported (WIP).
 3. **`function onProof() = nil`**
     - If provided, the server will send a token of proof after downloading the data, which will then call this callback
@@ -228,7 +228,7 @@ The <img src="https://user-images.githubusercontent.com/7936439/200705110-55b19d
     - The name of the message. Think of this just like the name given to `net.Receive`
     - This parameter is case-insensitive, it will be `string.lower`'d
 2. **`table data`**
-    - The table of data to send
+    - The table to send
     - This table can be of any size, in any order, with nearly any data type. The only exception you might care about is `Color` objects not being fully supported (WIP).
 3. **`table/Player recipient`**
     - If given a table, it will be treated as a table of valid Players
@@ -261,7 +261,7 @@ Operates exactly like `express.Send`, except it sends a message to all players.
     - The name of the message. Think of this just like the name given to `net.Receive`
     - This parameter is case-insensitive, it will be `string.lower`'d
 2. **`table data`**
-    - The table of data to send
+    - The table to send
     - This table can be of any size, in any order, with nearly any data type. The only exception you might care about is `Color` objects not being fully supported (WIP).
 3. **`function onProof( Player ply ) = nil`**
     - If provided, each player will send a token of proof after downloading the data, which will then call this callback
