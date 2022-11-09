@@ -18,7 +18,6 @@ function express:makeAccessURL( ... )
     local url = self:makeBaseURL()
     local args = { self.access,  ... }
 
-    -- if #args == 0 then return url end
     return url .. "/" .. table.concat( args, "/" )
 end
 
