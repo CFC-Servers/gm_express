@@ -47,7 +47,8 @@ If you'd like to host your own Service, just click this button!
 
 ## Usage
 
-### Examples
+<details>
+<summary><h3> <u>Examples</u> </h3></summary>
 
 #### Broadcast a message from Server
 ```lua
@@ -95,12 +96,14 @@ express.Receive( "prop_mesh", function( data )
     entMeshes[data.entIndex] = data.data
 end )
 ```
-
+</details>
 <br>
 
 ## :open_book: <ins> Documentation </ins>
 
-#### **<img src="https://user-images.githubusercontent.com/7936439/200705159-4c51d043-82a3-4d15-a335-291bb26a5528.png" width="15"> `express.Receive( string name, function callback )`**
+
+<details>
+<summary><h4> <strong><img src="https://user-images.githubusercontent.com/7936439/200705159-4c51d043-82a3-4d15-a335-291bb26a5528.png" width="15"> <code>express.Receive( string name, function callback )</code></strong> </h4></summary>
 
 #### <ins>**Description**</ins>
 This function is very similar to `net.Receive`. It attaches a callback function to a given message name.
@@ -128,9 +131,10 @@ express.Receive( "balls", function( ply, data )
 end )
 ```
 
-<br>
+</details>
 
-#### **<img src="https://user-images.githubusercontent.com/7936439/200705159-4c51d043-82a3-4d15-a335-291bb26a5528.png" width="15"> `express.ReceivePreDl( string name, function callback )`**
+<details>
+<summary><h4> <strong><img src="https://user-images.githubusercontent.com/7936439/200705159-4c51d043-82a3-4d15-a335-291bb26a5528.png" width="15"> <code>express.ReceivePreDl( string name, function callback )</code></strong> </h4></summary>
 
 #### <ins>**Description**</ins>
 Very much like `express.Receive`, except this callback runs _before_ the `data` has actually been downloaded from the Express API.
@@ -172,10 +176,10 @@ express.ReceivePreDl( "preferences", function( name, ply, _, size, _ )
     return false
 end )
 ```
+</details>
 
-<br>
-
-#### **<img src="https://user-images.githubusercontent.com/7936439/200705060-b5e57f56-a5a1-4c95-abfa-0d568be0aad6.png" width="15"> `express.Send( string name, table data, function onProof )`**
+<details>
+<summary><h4> <strong><img src="https://user-images.githubusercontent.com/7936439/200705060-b5e57f56-a5a1-4c95-abfa-0d568be0aad6.png" width="15"> <code>express.Send( string name, table data, function onProof )</code></strong> </h4></summary>
 
 #### <ins>**Description**</ins>
 The <img src="https://user-images.githubusercontent.com/7936439/200705060-b5e57f56-a5a1-4c95-abfa-0d568be0aad6.png" width="15"> **CLIENT** version of `express.Send`. Sends an arbitrary table of data to the server, and runs the given callback when the server has downloaded the data.
@@ -215,10 +219,10 @@ timer.Create( "bulk_actions_timeout", 5, 1, function()
     myPanel:SetInteractable( true )
 end )
 ```
+</details>
 
-<br>
-
-#### **<img src="https://user-images.githubusercontent.com/7936439/200705110-55b19d08-b342-4e94-a7c3-6b45baf98c2b.png" width="15"> `express.Send( string name, table data, table/Player recipient, function onProof )`**
+<details>
+<summary><h4> <strong><img src="https://user-images.githubusercontent.com/7936439/200705110-55b19d08-b342-4e94-a7c3-6b45baf98c2b.png" width="15"> <code>express.Send( string name, table data, table/Player recipient, function onProof )</code></strong> </h4></summary>
 
 #### <ins>**Description**</ins>
 The <img src="https://user-images.githubusercontent.com/7936439/200705110-55b19d08-b342-4e94-a7c3-6b45baf98c2b.png" width="15"> **SERVER** version of `express.Send`. Sends an arbitrary table of data to the recipient(s), and runs the given callback when the server has downloaded the data.
@@ -248,10 +252,10 @@ end
 
 express.Send( "current_packet_loss", loss, targetPly )
 ```
+</details>
 
-<br>
-
-#### **<img src="https://user-images.githubusercontent.com/7936439/200705110-55b19d08-b342-4e94-a7c3-6b45baf98c2b.png" width="15"> `express.Broadcast( string name, table data, function onProof )`**
+<details>
+<summary><h4> <strong><img src="https://user-images.githubusercontent.com/7936439/200705110-55b19d08-b342-4e94-a7c3-6b45baf98c2b.png" width="15"> <code>express.Broadcast( string name, table data, function onProof )</code></strong> </h4></summary>
 
 #### <ins>**Description**</ins>
 Operates exactly like `express.Send`, except it sends a message to all players.
@@ -276,6 +280,7 @@ RP.UpdateRules( newRules )
     express.Broadcast( "rp_rules", newRules )
 end
 ```
+</details>
 
 ## Credits
 A big thanks to [@thelastpenguin](https://github.com/thelastpenguin) for his [super fast pON encoder](https://github.com/thelastpenguin/gLUA-Library/blob/master/pON/pON-developmental.lua) that lets Express quickly serialize almost every GMod object into a compact message. 
