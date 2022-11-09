@@ -276,3 +276,6 @@ RP.UpdateRules( newRules )
     express.Broadcast( "rp_rules", newRules )
 end
 ```
+
+## Credits
+A big thanks to [@thelastpenguin](https://github.com/thelastpenguin) for his [super fast pON encoder](https://github.com/thelastpenguin/gLUA-Library/blob/master/pON/pON-developmental.lua) that lets Express quickly serialize almost every GMod object into a compact message. 
