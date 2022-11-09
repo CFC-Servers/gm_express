@@ -20,7 +20,7 @@ function express:makeAccessURL( ... )
 
     table.insert(args, self.access, 1)
 
-    if #args == 0 then return url end
+    -- if #args == 0 then return url end
     return url .. "/" .. table.concat( args, "/" )
 end
 
