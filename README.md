@@ -98,9 +98,7 @@ end )
 
 <br>
 
-### :open_book: <ins> Documentation </ins>
-
-<br>
+## :open_book: <ins> Documentation </ins>
 
 #### **<img src="https://user-images.githubusercontent.com/7936439/200705159-4c51d043-82a3-4d15-a335-291bb26a5528.png" width="15"> `express.Receive( string name, function callback )`**
 
