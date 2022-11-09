@@ -1,4 +1,4 @@
-# 🚄 Express
+# :bullettrain_side: Express
 A lightning-fast networking library for Garry's Mod that allows you to quickly send large amounts of data between server/client with ease.
 
 Seriously, it's really easy! Take a look:
@@ -21,10 +21,10 @@ The client would receive the contents of the file as fast as their internet conn
 Instead of using Garry's Mod's throttled _(<1mb/s!)_ and already-polluted networking system, Express uses unthrottled HTTP requests to transmit data between the client and server.
 
 Doing it this way comes with a number of practical benefits:
- - 📬 These messages don't run on the main thread, meaning it won't block networking/physics/lua
- - 💪 A dramatic increase to maximum message size (~100mb, compared to the `net` library's 64kb limit)
- - 🏎️ Big improvements to speed in many circumstances
- - 🤙 It's simple! You don't have to worry about serializing, compressing, and splitting your table up. Just send the table!
+ - :mailbox_with_mail: These messages don't run on the main thread, meaning it won't block networking/physics/lua
+ - :muscle: A dramatic increase to maximum message size (~100mb, compared to the `net` library's 64kb limit)
+ - :racing_car: Big improvements to speed in many circumstances
+ - :call_me_hand: It's simple! You don't have to worry about serializing, compressing, and splitting your table up. Just send the table!
 
 Express works by storing the data you send on Cloudflare's Edge servers. Using Cloudflare workers, KV, and D1, Express can cheaply serve millions of requests and store hundreds of gigabytes per month. Cloudflare's Edge servers offer extremely low-latency requests and data access to every corner of the globe.
 
@@ -96,9 +96,187 @@ express.Receive( "prop_mesh", function( data )
 end )
 ```
 
-## Interested in using Express?
-This addon ships with a GPLv3 License, so please use it however you'd like according to the License.
+<br>
 
-If you'd like to use this addon as a dependency of your own, you may link to this page, or mark it as a Dependency on your Workshop addon:
+### :open_book: <ins> Documentation </ins>
 
-https://steamcommunity.com/sharedfiles/filedetails/?id=2885046932
+<br>
+
+#### **<img src="https://user-images.githubusercontent.com/7936439/200705159-4c51d043-82a3-4d15-a335-291bb26a5528.png" width="15"> `express.Receive( string name, function callback )`**
+
+#### <ins>**Description**</ins>
+This function is very similar to `net.Receive`. It attaches a callback function to a given message name.
+
+#### <ins>**Arguments**</ins>
+1. **`string name`**
+    - The name of the message. Think of this just like the name given to `net.Receive`
+    - This parameter is case-insensitive, it will be `string.lower`'d
+2. **`function callback`**
+    - The function to call when data comes through for this message.
+    - On <img src="https://user-images.githubusercontent.com/7936439/200705060-b5e57f56-a5a1-4c95-abfa-0d568be0aad6.png" width="15"> **CLIENT**, this callback receives a single parameter:
+        - **`table data`**: The data table send by server
+    - On <img src="https://user-images.githubusercontent.com/7936439/200705110-55b19d08-b342-4e94-a7c3-6b45baf98c2b.png" width="15"> **SERVER**, this callback receives two parameters:
+        - **`Player ply`**: The player who sent the data
+        - **`table data`**: The data table send by the player
+
+#### <ins>**Example**</ins>
+Set up a serverside receiver for the `"balls"` message:
+```lua
+express.Receive( "balls", function( ply, data )
+    myTable.playpin = data
+
+    if not IsValid( ply ) then return end
+    ply:ChatPrint( "Thanks for the balls!" )
+end )
+```
+
+<br>
+
+#### **<img src="https://user-images.githubusercontent.com/7936439/200705159-4c51d043-82a3-4d15-a335-291bb26a5528.png" width="15"> `express.ReceivePreDl( string name, function callback )`**
+
+#### <ins>**Description**</ins>
+Very much like `express.Receive`, except this callback runs _before_ the `data` has actually been downloaded from the Express API.
+
+#### <ins>**Arguments**</ins>
+1. **`string name`**
+    - The name of the message. Think of this just like the name given to `net.Receive`
+    - This parameter is case-insensitive, it will be `string.lower`'d
+2. **`function callback`**
+    - The function to call just before downloading the data.
+    - On <img src="https://user-images.githubusercontent.com/7936439/200705060-b5e57f56-a5a1-4c95-abfa-0d568be0aad6.png" width="15"> **CLIENT**, this callback receives:
+        - **`string message`**: The name of the message
+        - **`string id`**: The ID of the download _(used to retrieve the data from the API)_
+        - **`int size`**: The size (in bytes) of the data
+        - **`boolean needsProof`**: A boolean indicating whether or not the sender has requested proof-of-download
+    - On <img src="https://user-images.githubusercontent.com/7936439/200705110-55b19d08-b342-4e94-a7c3-6b45baf98c2b.png" width="15"> **SERVER**, this callback receives:
+        - **`string message`**: The name of the message
+        - **`Player ply`**: The player that is sending the data
+        - **`string id`**: The ID of the download _(used to retrieve the data from the API)_
+        - **`int size`**: The size (in bytes) of the data
+        - **`boolean needsProof`**: A boolean indicating whether or not the sender has requested proof-of-download
+
+#### <ins>**Returns**</ins>
+ 1. **`boolean`**:
+     - Return `false` to halt the transaction. The data will not be downloaded, and the regular receiver callback will not be called.
+
+#### <ins>**Example**</ins>
+Adds a normal message receiver and a pre-download receiver to prevent the server from downloading too much data:
+```lua
+express.Receive( "preferences", function( ply, data )
+    ply.preferences = data
+end )
+
+express.ReceivePreDl( "preferences", function( message, ply, _, size, _ )
+    local maxSize = maxMessageSizes[message]
+    if size <= maxSize then return end
+    
+    print( ply, "tried to send a", size, "byte", message, "message! Rejecting!" )
+    return false
+end )
+```
+
+<br>
+
+#### **<img src="https://user-images.githubusercontent.com/7936439/200705060-b5e57f56-a5a1-4c95-abfa-0d568be0aad6.png" width="15"> `express.Send( string name, table data, function onProof )`**
+
+#### <ins>**Description**</ins>
+The <img src="https://user-images.githubusercontent.com/7936439/200705060-b5e57f56-a5a1-4c95-abfa-0d568be0aad6.png" width="15"> **CLIENT** version of `express.Send`. Sends an arbitrary table of data to the server, and runs the given callback when the server has downloaded the data.
+
+#### <ins>**Arguments**</ins>
+1. **`string name`**
+    - The name of the message. Think of this just like the name given to `net.Receive`
+    - This parameter is case-insensitive, it will be `string.lower`'d
+2. **`table data`**
+    - The table of data to send
+    - This table can be of any size, in any order, with nearly any data type. The only exception you might care about is `Color` objects not being fully supported (WIP).
+3. **`function onProof() = nil`**
+    - If provided, the server will send a token of proof after downloading the data, which will then call this callback
+    - This callback takes no parameters
+
+#### <ins>**Example**</ins>
+Sends a table of queued actions (perhaps from a UI) and then allows the client to proceed when the server confirms it was received.
+A timer is created to handle the case the server doesn't respond for some reason.
+```lua
+local queuedActions = {
+    { "remove_ban", steamID1 },
+    { "add_ban", steamID2, 60 },
+    { "change_rank", steamID3, "developer" }
+}
+
+myPanel:StartSpinner()
+myPanel:SetInteractable( false )
+express.Send( "bulk_admin_actions", queuedActions, function()
+    myPanel:StopSpinner()
+    myPanel:SetInteractable( true )
+    timer.Remove( "bulk_actions_timeout" )
+end )
+
+timer.Create( "bulk_actions_timeout", 5, 1, function()
+    myPanel:SendError( "The server didn't respond!" )
+    myPanel:StopSpinner()
+    myPanel:SetInteractable( true )
+end )
+```
+
+<br>
+
+#### **<img src="https://user-images.githubusercontent.com/7936439/200705110-55b19d08-b342-4e94-a7c3-6b45baf98c2b.png" width="15"> `express.Send( string name, table data, table/Player recipient, function onProof )`**
+
+#### <ins>**Description**</ins>
+The <img src="https://user-images.githubusercontent.com/7936439/200705110-55b19d08-b342-4e94-a7c3-6b45baf98c2b.png" width="15"> **SERVER** version of `express.Send`. Sends an arbitrary table of data to the recipient(s), and runs the given callback when the server has downloaded the data.
+
+#### <ins>**Arguments**</ins>
+1. **`string name`**
+    - The name of the message. Think of this just like the name given to `net.Receive`
+    - This parameter is case-insensitive, it will be `string.lower`'d
+2. **`table data`**
+    - The table of data to send
+    - This table can be of any size, in any order, with nearly any data type. The only exception you might care about is `Color` objects not being fully supported (WIP).
+3. **`table/Player recipient`**
+    - If given a table, it will be treated as a table of valid Players
+    - If given a single Player, it will send only to that Player
+3. **`function onProof( Player ply ) = nil`**
+    - If provided, the client(s) will send a token of proof after downloading the data, which will then call this callback
+    - This callback takes one parameter:
+        - **`Player ply`**: The player who provided the proof
+
+#### <ins>**Example**</ins>
+Sends a table of all players' current packet loss to a single player. Note that this example does not use the optional `onProof` callback.
+```lua
+local loss = {}
+for _, ply in ipairs( player.GetAll() ) do
+    loss[ply] = ply:PacketLoss()
+end
+
+express.Send( "current_packet_loss", loss, targetPly )
+```
+
+<br>
+
+#### **<img src="https://user-images.githubusercontent.com/7936439/200705110-55b19d08-b342-4e94-a7c3-6b45baf98c2b.png" width="15"> `express.Broadcast( string name, table data, function onProof )`**
+
+#### <ins>**Description**</ins>
+Operates exactly like `express.Send`, except it sends a message to all players.
+
+#### <ins>**Arguments**</ins>
+1. **`string name`**
+    - The name of the message. Think of this just like the name given to `net.Receive`
+    - This parameter is case-insensitive, it will be `string.lower`'d
+2. **`table data`**
+    - The table of data to send
+    - This table can be of any size, in any order, with nearly any data type. The only exception you might care about is `Color` objects not being fully supported (WIP).
+3. **`function onProof( Player ply ) = nil`**
+    - If provided, each player will send a token of proof after downloading the data, which will then call this callback
+    - This callback takes a single parameter:
+        - **`Player ply`**: The player who provided the proof
+
+#### <ins>**Example**</ins>
+Sends a table of all players' current packet loss to a single player. Note that this example does not use the optional `onProof` callback.
+```lua
+local loss = {}
+for _, ply in ipairs( player.GetAll() ) do
+    loss[ply] = ply:PacketLoss()
+end
+
+express.Send( "current_packet_loss", loss, targetPly )
+```
