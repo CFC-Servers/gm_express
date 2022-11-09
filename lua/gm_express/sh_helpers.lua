@@ -16,9 +16,8 @@ end
 
 function express:makeAccessURL( ... )
     local url = self:makeBaseURL()
-    local args = { ... }
+    local args = { self.access,  ... }
 
-    if #args == 0 then return url end
     return url .. "/" .. table.concat( args, "/" )
 end
 
@@ -69,7 +68,7 @@ function express:_send( message, data, plys, onProof )
         net.WriteBool( onProof ~= nil )
 
         if onProof then
-            self:setExpected( hash, onProof, plys )
+            self:SetExpected( hash, onProof, plys )
         end
 
         express.shSend( plys )
