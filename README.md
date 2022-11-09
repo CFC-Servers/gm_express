@@ -269,12 +269,10 @@ Operates exactly like `express.Send`, except it sends a message to all players.
         - **`Player ply`**: The player who provided the proof
 
 #### <ins>**Example**</ins>
-Sends a table of all players' current packet loss to a single player. Note that this example does not use the optional `onProof` callback.
+Sends the updated RP rules to all players
 ```lua
-local loss = {}
-for _, ply in ipairs( player.GetAll() ) do
-    loss[ply] = ply:PacketLoss()
+RP.UpdateRules( newRules )
+    RP.Rules = newRules
+    express.Broadcast( "rp_rules", newRules )
 end
-
-express.Send( "current_packet_loss", loss, targetPly )
 ```
