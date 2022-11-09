@@ -99,12 +99,12 @@ function express:Call( message, ply, data )
 end
 
 -- Run the express pre-download receiver for the given message
-function express:CallPreDownload( message, ply, id, needsProof )
+function express:CallPreDownload( message, ply, id, size, needsProof )
     local cb = self._preDlReceivers[string.lower( message )]
     if not cb then return end
 
-    if CLIENT then return cb( message, id, needsProof ) end
-    if SERVER then return cb( message, ply, id, needsProof ) end
+    if CLIENT then return cb( message, id, size, needsProof ) end
+    if SERVER then return cb( message, ply, id, size, needsProof ) end
 end
 
 function express.OnMessage( _, ply )
