@@ -4,7 +4,7 @@ util.AddNetworkString( "express_access" )
 
 -- Broadcasts the given data to all connected players --
 function express.Broadcast( message, data, onProof )
-    express:Send( message, data, player.GetAll(), onProof )
+    express.Send( message, data, player.GetAll(), onProof )
 end
 
 
