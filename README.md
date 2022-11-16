@@ -285,5 +285,65 @@ end
 ```
 </details>
 
+## Performance
+
+When the project is more mature, I'll take on the task of comparing performance in a variety of scenarios with something like Netstream and/or manual chunking.
+
+## Case Studies
+
+
+<details>
+<summary><h3>Intricate ACF-3 Tank dupe :gun:</h3></summary>
+Here's a clip of me spawning a particularly detailed and Prop2Mesh-heavy ACF-3 dupe (both Prop2Mesh and Adv2 use Netstream to transmit their data).
+
+<br>
+
+https://user-images.githubusercontent.com/7936439/202295397-047736ce-43e5-4ab3-b741-6f5e7517e6bb.mp4
+
+A few things to note:
+ - It took ~20 seconds for the dupe to be transferred to the server via Netstream
+ - It took an additional ~20 seconds for the Prop2Mesh data to be Netstreamed back to me
+ - On the netgraph, you can see the `in` and `out` metrics (and the associated green horizontal progress bar) that shows Netstream sending each chunk
+ - **Netstream only processes one request at a time**. This is important, because it means while Adv2 or Prop2Mesh are transmitting data, no other player can use any Netstream-based addon until it completes.
+
+
+Using some custom backport code, I converted Prop2Mesh _and_ Advanced Duplicator 2 to use Express instead of Netstream.
+Here's me spawning the same tank in the exact same conditions, but using Express instead:
+
+https://user-images.githubusercontent.com/7936439/202296048-d3cbbb32-f3a9-47f3-a42c-6f59fd7f6697.mp4
+
+The entire process took under 15 seconds - that's over 60% faster!
+My PC actually lagged for a moment because of how quickly all of the meshes downloaded and were available to render.
+
+Even better? **This doesn't block any other player from spawning their dupes**! Because this is using Express instead of Netstream, other players can freely spawn their dupes, Prop2Mesh, Starfalls, etc. without being blocked and without blocking others.
+
+</details>
+
+<details>
+<summary><h3>Prop2Mesh + Adv2 stress test :test_tube:</h3></summary>
+I had someone who knew more about Prop2Mesh than me create a highly complex controller. Here are the stats:
+
+![XngzjRoTlZ](https://user-images.githubusercontent.com/7936439/202296941-3280c2dd-3660-45ac-9e20-24a180dd6ab2.png)
+
+Nearly 1M triangles across 162 models! If you've ever worked with meshes before, you'll know those are crazy high numbers.
+
+When spawning this dupe in a stock server with Adv2 and Prop2Mesh, it takes **nearly 4 minutes**! All the while, blocking other players from using any Netstream-based addon. I can't even upload the video here because it's too big. Hopefully this screenshot is informative enough:
+
+![image](https://user-images.githubusercontent.com/7936439/202297362-eef07e2d-65dd-41f9-a00c-8b5bf4388b10.png)
+
+Some metrics:
+ - It took 1 minute and 50 seconds before the dupe was even spawnable (it had to send the full dupe over to the server first)
+ - After an additional 3 minutes, the meshes were finally downloaded and rendered
+ - Again, while this was happening, no other player could use Adv2, Prop2Mesh, or Starfall
+ 
+With that same backport code, forcing Adv2 and Prop2Mesh to use Express, the entire process **takes under 30 seconds**!
+That's almost a **90%** speed increase.
+
+https://user-images.githubusercontent.com/7936439/202298284-bea90b54-c0b9-440b-b615-c9f58a1ed1f4.mp4
+
+</details>
+
+
+
 ## Credits
 A big thanks to [@thelastpenguin](https://github.com/thelastpenguin) for his [super fast pON encoder](https://github.com/thelastpenguin/gLUA-Library/blob/master/pON/pON-developmental.lua) that lets Express quickly serialize almost every GMod object into a compact message.
