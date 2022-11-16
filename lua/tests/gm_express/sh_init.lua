@@ -1,5 +1,10 @@
 return {
     groupName = "Shared Main",
+
+    beforeEach = function()
+        stub( express, "makeAccessURL" ).returns( "https://gmod.express/v1/action/access-token" )
+    end,
+
     cases = {
         {
             name = "Sets up necessary variables and hooks",
