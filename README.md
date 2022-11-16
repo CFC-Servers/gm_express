@@ -1,4 +1,4 @@
-# :bullettrain_side: Express
+# Express :bullettrain_side:
 A lightning-fast networking library for Garry's Mod that allows you to quickly send large amounts of data between server/client with ease.
 
 Seriously, it's really easy! Take a look:
