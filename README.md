@@ -16,6 +16,9 @@ end )
 In this example, `huge_data_file.json` could be in excess of 100mb without Express even breaking a sweat.
 The client would receive the contents of the file as fast as their internet connection can carry it.
 
+[![GLuaTest](https://github.com/CFC-Servers/gm_express/actions/workflows/gluatest.yml/badge.svg)](https://github.com/CFC-Servers/GLuaTest)
+![GLuaLint](https://github.com/CFC-Servers/gm_express/actions/workflows/glualint.yml/badge.svg)
+
 
 ## Details
 Instead of using Garry's Mod's throttled _(<1mb/s!)_ and already-polluted networking system, Express uses unthrottled HTTP requests to transmit data between the client and server.
@@ -171,7 +174,7 @@ end )
 express.ReceivePreDl( "preferences", function( name, ply, _, size, _ )
     local maxSize = maxMessageSizes[name]
     if size <= maxSize then return end
-    
+
     print( ply, "tried to send a", size, "byte", name, "message! Rejecting!" )
     return false
 end )
@@ -283,4 +286,4 @@ end
 </details>
 
 ## Credits
-A big thanks to [@thelastpenguin](https://github.com/thelastpenguin) for his [super fast pON encoder](https://github.com/thelastpenguin/gLUA-Library/blob/master/pON/pON-developmental.lua) that lets Express quickly serialize almost every GMod object into a compact message. 
+A big thanks to [@thelastpenguin](https://github.com/thelastpenguin) for his [super fast pON encoder](https://github.com/thelastpenguin/gLUA-Library/blob/master/pON/pON-developmental.lua) that lets Express quickly serialize almost every GMod object into a compact message.
