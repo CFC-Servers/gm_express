@@ -17,7 +17,7 @@ In this example, `huge_data_file.json` could be in excess of 100mb without Expre
 The client would receive the contents of the file as fast as their internet connection can carry it.
 
 [![GLuaTest](https://github.com/CFC-Servers/gm_express/actions/workflows/gluatest.yml/badge.svg)](https://github.com/CFC-Servers/GLuaTest)
-![GLuaLint](https://github.com/CFC-Servers/gm_express/actions/workflows/glualint.yml/badge.svg)
+[![GLuaLint](https://github.com/CFC-Servers/gm_express/actions/workflows/glualint.yml/badge.svg)](https://github.com/FPtje/GLuaFixer)
 
 
 ## Details
