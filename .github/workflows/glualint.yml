@@ -1,4 +1,4 @@
-name: GLuaFixer
+name: GLuaLint
 
 on:
   pull_request:
