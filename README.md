@@ -13,7 +13,7 @@ express.Receive( "stored_data", function( data )
 end )
 ```
 
-In this example, `huge_data_file.json` could be in excess of 100mb without Express even breaking a sweat.
+In this example, `huge_data_file.json` could be in excess of ~~100mb~~ _(soon)_ 25mb post-compression without Express even breaking a sweat.
 The client would receive the contents of the file as fast as their internet connection can carry it.
 
 [![GLuaTest](https://github.com/CFC-Servers/gm_express/actions/workflows/gluatest.yml/badge.svg)](https://github.com/CFC-Servers/GLuaTest)
