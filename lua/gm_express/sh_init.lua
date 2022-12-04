@@ -111,7 +111,7 @@ end
 
 -- Runs the express pre-download receiver for the given message --
 function express:CallPreDownload( message, ply, id, size, needsProof )
-    local cb = self._getPreDlReceiver( message )
+    local cb = self:_getPreDlReceiver( message )
     if not cb then return end
 
     if CLIENT then return cb( message, id, size, needsProof ) end
