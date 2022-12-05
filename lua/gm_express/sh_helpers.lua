@@ -98,7 +98,11 @@ function express:_put( data, cb )
 
     local cachedId = self._putCache[hash]
     if cachedId then
-        cb( cachedId, hash )
+        -- Force the callback to run asynchronously for consistency
+        timer.Simple( 0, function()
+            cb( cachedId, hash )
+        end )
+
         return
     end
 
