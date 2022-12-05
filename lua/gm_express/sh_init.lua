@@ -44,8 +44,12 @@ function express:Get( id, cb )
         local encodedData = util.Decompress( body, self._maxDataSize )
         assert( encodedData, "Invalid data" )
 
-        local decodedData = pon.decode( encodedData )
-        cb( decodedData, hash )
+        local decodeSuccess, decodedData = pcall( pon.decode, encodedData )
+        if decodeSuccess then return cb( decodedData, hash, true ) end
+
+        print( "Failed to decode pON data!" )
+        print( encodedData )
+        print( "==========================" )
     end
 
     http.Fetch( url, success, error, self._bytesHeaders )
@@ -135,12 +139,15 @@ function express.OnMessage( _, ply )
             if check == false then return end
         end
 
-        express:_get( id, function( data, hash )
-            express:Call( message, ply, data )
+        express:_get( id, function( data, hash, success )
+            if success then
+                express:Call( message, ply, data )
+            end
 
             if not needsProof then return end
             net.Start( "express_proof" )
             net.WriteString( hash )
+            net.WriteBool( success )
             express.shSend( ply )
         end )
     end
@@ -162,7 +169,9 @@ function express.OnProof( _, ply )
     local cb = express._awaitingProof[hash]
     if not cb then return end
 
-    cb( ply )
+    local success = net.ReadBool()
+
+    cb( ply, success )
     express._awaitingProof[hash] = nil
 end
 
