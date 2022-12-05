@@ -348,6 +348,8 @@ return {
         },
         {
             name = "express._put returns the ID from the cache if the data is already cached",
+            async = true,
+            timeout = 0.2,
             func = function()
                 -- Sanity check
                 expect( table.Count( express._putCache ) ).to.equal( 0 )
@@ -366,8 +368,11 @@ return {
 
                 express:_put( mockData, mockCallback )
 
-                expect( putStub ).notTo.haveBeenCalled()
-                expect( mockCallback ).to.haveBeenCalled()
+                timer.Simple( 0.1, function()
+                    expect( putStub ).notTo.haveBeenCalled()
+                    expect( mockCallback ).to.haveBeenCalled()
+                    done()
+                end )
             end,
 
             cleanup = function()
