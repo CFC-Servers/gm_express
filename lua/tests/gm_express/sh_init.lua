@@ -33,6 +33,9 @@ return {
                 expect( express.domain ).to.exist()
                 expect( tostring( express.domain ) ).to.equal( tostring( GetConVar( "express_domain" ) ) )
 
+                expect( express.domain_cl ).to.exist()
+                expect( tostring( express.domain_cl ) ).to.equal( tostring( GetConVar( "express_domain_cl" ) ) )
+
                 expect( net.Receivers["express"] ).to.exist()
                 expect( net.Receivers["express_proof"] ).to.exist()
             end

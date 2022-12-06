@@ -16,7 +16,6 @@ function express.Register()
     local oneDay = 60 * 60 * 24
     timer.Create( "Express_Register", oneDay, 0, express.Register )
 
-    express._putCache = {}
     local url = express:makeBaseURL() .. "/register"
 
     http.Fetch( url, function( body, _, _, code )

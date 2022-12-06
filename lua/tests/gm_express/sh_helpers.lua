@@ -56,19 +56,95 @@ return {
             end
         },
 
+        -- express.getDomain
+        {
+            name = "express.getDomain returns express_domain on SERVER",
+            func = function( state )
+                state.original_domain = express.domain
+                express.domain = {
+                    GetString = function()
+                        return "example.cfcservers.org"
+                    end
+                }
+
+                expect( express:getDomain() ).to.equal( "example.cfcservers.org" )
+            end,
+
+            cleanup = function( state )
+                express.domain = state.original_domain
+            end
+        },
+        {
+            name = "express.getDomain returns express_domain on CLIENT if express_domain_cl is empty",
+            func = function( state )
+                _G.CLIENT = true
+                _G.SERVER = false
+                state.original_domain = express.domain
+                state.original_cl_domain = express.domain_cl
+
+                express.domain = {
+                    GetString = function()
+                        return "example.cfcservers.org"
+                    end
+                }
+
+                express.domain_cl = {
+                    GetString = function()
+                        return ""
+                    end
+                }
+
+                expect( express:getDomain() ).to.equal( "example.cfcservers.org" )
+            end,
+
+            cleanup = function( state )
+                _G.CLIENT = false
+                _G.SERVER = true
+                express.domain = state.original_domain
+                express.domain_cl = state.original_cl_domain
+            end
+        },
+        {
+            name = "express.getDomain returns express_domain_cl on CLIENT if express_domain_cl is not empty",
+            func = function( state )
+                _G.CLIENT = true
+                _G.SERVER = false
+                state.original_domain = express.domain
+                state.original_cl_domain = express.domain_cl
+
+                express.domain = {
+                    GetString = function()
+                        return "example.cfcservers.org"
+                    end
+                }
+
+                express.domain_cl = {
+                    GetString = function()
+                        return "cl.cfcservers.org"
+                    end
+                }
+
+                expect( express:getDomain() ).to.equal( "cl.cfcservers.org" )
+            end,
+
+            cleanup = function( state )
+                _G.CLIENT = false
+                _G.SERVER = true
+                express.domain = state.original_domain
+                express.domain_cl = state.original_cl_domain
+            end
+        },
+
         -- express.makeBaseURL
         {
             name = "express.makeBaseURL makes the correct URL",
             func = function( state )
                 state.original_protocol = express._protocol
-                state.original_domain = express.domain
                 state.original_version = express.version
 
-                express._protocol = "https"
-                express.domain = {
-                    GetString = function() return "example.cfcservers.org" end
-                }
                 express.version = "1"
+                express._protocol = "https"
+                stub( express, "getDomain" ).returns( "example.cfcservers.org" )
 
                 local expected = "https://example.cfcservers.org/v1"
                 local actual = express:makeBaseURL()
@@ -78,7 +154,6 @@ return {
 
             cleanup = function( state )
                 express._protocol = state.original_protocol
-                express.domain = state.original_domain
                 express.version = state.original_version
             end
         },
