@@ -15,10 +15,22 @@ function express.shSend( target )
 end
 
 
+-- Returns the correct domain based on the realm and convars --
+function express:getDomain()
+    local domain = self.domain:GetString()
+    if SERVER then return domain end
+
+    local clDomain = self.domain_cl:GetString()
+    if clDomain ~= "" then return clDomain end
+
+    return domain
+end
+
+
 -- Creates the base of the API URL from the protocol, domain, and version --
 function express:makeBaseURL()
     local protocol = self._protocol
-    local domain = self.domain:GetString()
+    local domain = self:getDomain()
     return string.format( "%s://%s/v%d", protocol, domain, self.version )
 end
 
@@ -146,9 +158,21 @@ function express:_getPreDlReceiver( message )
 end
 
 
+
 -- Attempts to re-register with the new domain, and then verifies its version --
 cvars.AddChangeCallback( "express_domain", function()
+    express._putCache = {}
+
     if SERVER then express:Register() end
+
+    express:CheckRevision()
+end, "domain_check" )
+
+-- Both client and server should check the version on startup so that errors are caught early --
+cvars.AddChangeCallback( "express_domain_cl", function( _, _, new )
+    if CLIENT then express._putCache = {} end
+    if new == "" then return end
+
     express:CheckRevision()
 end, "domain_check" )
 

@@ -18,6 +18,12 @@ express.domain = CreateConVar(
     "express_domain", "gmod.express", FCVAR_ARCHIVE + FCVAR_REPLICATED, "The domain of the Express server"
 )
 
+-- Useful for self-hosting if you need to set express_domain to localhost
+-- and direct clients to a global IP/domain to hit the same service
+express.domain_cl = CreateConVar(
+    "express_domain_cl", "", FCVAR_ARCHIVE + FCVAR_REPLICATED, "The client-specific domain of the Express server. If empty, express_domain will be used."
+)
+
 
 -- Registers a basic receiver --
 function express.Receive( message, cb )
