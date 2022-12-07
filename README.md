@@ -32,21 +32,7 @@ Doing it this way comes with a number of practical benefits:
 Express works by storing the data you send on Cloudflare's Edge servers. Using Cloudflare workers, KV, and D1, Express can cheaply serve millions of requests and store hundreds of gigabytes per month. Cloudflare's Edge servers offer extremely low-latency requests and data access to every corner of the globe.
 
 By default, Express uses a free-forever public API provided by CFC Servers, but anyone can easily host their own!
-<details>
-<summary>Click here to learn more</summary>
-
-<br>
-
-[The Express Service](https://github.com/CFC-Servers/gm_express_service) is a Cloudflare Workers project, meaning that all of the code runs on Cloudflare's Edge servers.
-All data is stored using Cloudflare's K/V system - an ultra low-latency key-value storage tool that enables Express to send large chunks of data as quickly as your internet connection will allow.
-
-If you'd like to host your own Service, just click this button!
-
-[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button?paid=true)](https://deploy.workers.cloudflare.com/?url=https://github.com/CFC-Servers/gm_express_service&paid=true)
-
-**Note:** You'll also need to update the `express_domain` convar to whatever your new domain is. By default it'll probably look like: `gmod-express.<your cloudflare username>.workers.dev`. _(Don't include the protocol, just the raw domain)_
-
-</details>
+Check out the [Express Service](https://github.com/CFC-Servers/gm_express_service) README for more information.
 
 ## Usage
 
