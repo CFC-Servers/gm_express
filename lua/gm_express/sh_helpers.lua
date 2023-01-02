@@ -158,6 +158,11 @@ function express:_getPreDlReceiver( message )
 end
 
 
+-- Returns a realm-specific timeout value for HTTP requests --
+function express:_getTimeout()
+    return CLIENT and 240 or 60
+end
+
 
 -- Ensures that the given HTTP response code indicates a succcessful request --
 function express._checkResponseCode( code )
