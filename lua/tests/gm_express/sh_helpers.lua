@@ -670,7 +670,29 @@ return {
             func = function()
                 expect( express._checkResponseCode, nil ).to.errWith( "Express: Invalid response code (nil)" )
             end
-        }
+        },
 
+        -- express._getTimeout
+        {
+            name = "express._getTimeout returns 240 on CLIENT",
+            func = function()
+                _G.CLIENT = true
+                _G.SERVER = false
+
+                local timeout = express:_getTimeout()
+                expect( timeout ).to.equal( 240 )
+            end,
+            cleanup = function()
+                _G.CLIENT = false
+                _G.SERVER = true
+            end
+        },
+        {
+            name = "express._getTimeout returns 60 on SERVER",
+            func = function()
+                local timeout = express:_getTimeout()
+                expect( timeout ).to.equal( 60 )
+            end
+        }
     }
 }
