@@ -96,7 +96,7 @@ return {
                 local callback = stub()
 
                 local fetchStub = stub( http, "Fetch" ).with( function( _, success )
-                    expect( success, "", "", "", 418 ).to.errWith( "Invalid status code: 418" )
+                    expect( success, "", "", "", 418 ).to.errWith( "Express: Invalid response code (418)" )
                 end )
 
                 express:Get( "test-id", callback )
@@ -162,7 +162,7 @@ return {
                 local callback = stub()
 
                 local fetchStub = stub( http, "Fetch" ).with( function( _, success )
-                    expect( success, "", "", "", 418 ).to.errWith( "Invalid status code: 418" )
+                    expect( success, "", "", "", 418 ).to.errWith( "Express: Invalid response code (418)" )
                 end )
 
                 express:GetSize( "test-id", callback )
