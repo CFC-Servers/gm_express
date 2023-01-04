@@ -19,7 +19,7 @@ function express.Register()
     local url = express:makeBaseURL() .. "/register"
 
     http.Fetch( url, function( body, _, _, code )
-        express:_checkResponseCode( code )
+        express._checkResponseCode( code )
 
         local response = util.JSONToTable( body )
         assert( response, "Invalid JSON" )
