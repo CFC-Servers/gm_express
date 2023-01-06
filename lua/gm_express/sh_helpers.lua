@@ -159,6 +159,15 @@ end
 
 
 
+-- Ensures that the given HTTP response code indicates a succcessful request --
+function express._checkResponseCode( code )
+    local isOk = isnumber( code ) and code >= 200 and code < 300
+    if isOk then return end
+
+    error( "Express: Invalid response code (" .. tostring( code ) .. ")" )
+end
+
+
 -- Attempts to re-register with the new domain, and then verifies its version --
 cvars.AddChangeCallback( "express_domain", function()
     express._putCache = {}

@@ -44,7 +44,7 @@ function express:Get( id, cb )
     local url = self:makeAccessURL( "read", id )
 
     local success = function( body, _, _, code )
-        assert( code >= 200 and code < 300, "Invalid status code: " .. code )
+        express._checkResponseCode( code )
 
         local hash = util.SHA1( body )
         local encodedData = util.Decompress( body, self._maxDataSize )
@@ -63,7 +63,7 @@ function express:GetSize( id, cb )
     local url = self:makeAccessURL( "size", id )
 
     local success = function( body, _, _, code )
-        assert( code >= 200 and code < 300, "Invalid status code: " .. code )
+        express._checkResponseCode( code )
 
         local sizeHolder = util.JSONToTable( body )
         assert( sizeHolder, "Invalid JSON" )

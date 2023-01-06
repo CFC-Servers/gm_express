@@ -644,6 +644,32 @@ return {
                 expect( registerStub ).to.haveBeenCalled()
                 expect( checkRevisionStub ).to.haveBeenCalled()
             end
+        },
+
+        -- express:_checkResponseCode
+        {
+            name = "express._checkResponseCode succeeds if the response code is 200",
+            func = function()
+                expect( express._checkResponseCode, 200 ).to.succeed()
+            end
+        },
+        {
+            name = "express._checkResponseCode throws an error if the response code is under 200",
+            func = function()
+                expect( express._checkResponseCode, 199 ).to.errWith( "Express: Invalid response code (199)" )
+            end
+        },
+        {
+            name = "express._checkResponseCode throws an error if the response code is over 300",
+            func = function()
+                expect( express._checkResponseCode, 420 ).to.errWith( "Express: Invalid response code (420)" )
+            end
+        },
+        {
+            name = "express._checkResponseCode throws an error if the response code is nil",
+            func = function()
+                expect( express._checkResponseCode, nil ).to.errWith( "Express: Invalid response code (nil)" )
+            end
         }
 
     }
