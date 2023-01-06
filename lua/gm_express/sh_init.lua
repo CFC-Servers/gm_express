@@ -43,7 +43,7 @@ end
 function express:Get( id, cb )
     local url = self:makeAccessURL( "read", id )
 
-    local success = function( body, _, _, code )
+    local success = function( code, body )
         express._checkResponseCode( code )
 
         local hash = util.SHA1( body )
@@ -69,7 +69,7 @@ end
 function express:GetSize( id, cb )
     local url = self:makeAccessURL( "size", id )
 
-    local success = function( body, _, _, code )
+    local success = function( code, body )
         express._checkResponseCode( code )
 
         local sizeHolder = util.JSONToTable( body )
@@ -95,7 +95,7 @@ end
 -- Given prepared data, sends it to the API --
 function express:Put( data, cb )
     local success = function( code, body )
-        assert( code >= 200 and code < 300, "Invalid response code: " .. code )
+        express._checkResponseCode( code )
 
         local response = util.JSONToTable( body )
         assert( response, "Invalid JSON" )
