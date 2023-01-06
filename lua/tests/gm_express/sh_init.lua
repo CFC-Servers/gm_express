@@ -81,13 +81,13 @@ return {
         {
             name = "express.Get errors if the request fails",
             func = function()
-                local fetchStub = stub( http, "Fetch" ).with( function( _, _, errorCb )
-                    expect( errorCb ).to.equal( error )
+                local httpStub = stub( _G, "HTTP" ).with( function( options )
+                    expect( options.failed ).to.equal( error )
                 end )
 
                 express:Get( "test-id", stub() )
 
-                expect( fetchStub ).to.haveBeenCalled()
+                expect( httpStub ).was.called()
             end
         },
         {
@@ -95,14 +95,14 @@ return {
             func = function()
                 local callback = stub()
 
-                local fetchStub = stub( http, "Fetch" ).with( function( _, success )
-                    expect( success, "", "", "", 418 ).to.errWith( "Express: Invalid response code (418)" )
+                local httpStub = stub( _G, "HTTP" ).with( function( options )
+                    expect( options.success, "", "", "", 418 ).to.errWith( "Express: Invalid response code (418)" )
                 end )
 
                 express:Get( "test-id", callback )
 
-                expect( fetchStub ).to.haveBeenCalled()
-                expect( callback ).notTo.haveBeenCalled()
+                expect( httpStub ).was.called()
+                expect( callback ).wasNot.called()
             end
         },
         {
@@ -113,14 +113,14 @@ return {
 
                 local callback = stub()
 
-                local fetchStub = stub( http, "Fetch" ).with( function( _, success )
-                    expect( success, "", "", "", 200 ).to.errWith( "Invalid data" )
+                local httpStub = stub( _G, "HTTP" ).with( function( options )
+                    expect( options.success, "", "", "", 200 ).to.errWith( "Invalid data" )
                 end )
 
                 express:Get( "test-id", callback )
 
-                expect( fetchStub ).to.haveBeenCalled()
-                expect( callback ).notTo.haveBeenCalled()
+                expect( httpStub ).was.called()
+                expect( callback ).wasNot.called()
             end
         },
         {
@@ -132,14 +132,14 @@ return {
 
                 local callback = stub()
 
-                local fetchStub = stub( http, "Fetch" ).with( function( _, success )
-                    success( "", "", "", 200 )
+                local httpStub = stub( _G, "HTTP" ).with( function( options )
+                    options.success( "", "", "", 200 )
                 end )
 
                 express:Get( "test-id", callback )
 
-                expect( fetchStub ).to.haveBeenCalled()
-                expect( callback ).to.haveBeenCalled()
+                expect( httpStub ).was.called()
+                expect( callback ).was.called()
             end
         },
 
@@ -147,13 +147,13 @@ return {
         {
             name = "express.GetSize errors if the request fails",
             func = function()
-                local fetchStub = stub( http, "Fetch" ).with( function( _, _, errorCb )
-                    expect( errorCb ).to.equal( error )
+                local httpStub = stub( _G, "HTTP" ).with( function( options )
+                    expect( options.failed ).to.equal( error )
                 end )
 
                 express:GetSize( "test-id", stub() )
 
-                expect( fetchStub ).to.haveBeenCalled()
+                expect( httpStub ).was.called()
             end
         },
         {
@@ -161,14 +161,14 @@ return {
             func = function()
                 local callback = stub()
 
-                local fetchStub = stub( http, "Fetch" ).with( function( _, success )
-                    expect( success, "", "", "", 418 ).to.errWith( "Express: Invalid response code (418)" )
+                local httpStub = stub( _G, "HTTP" ).with( function( options )
+                    expect( options.success, "", "", "", 418 ).to.errWith( "Express: Invalid response code (418)" )
                 end )
 
                 express:GetSize( "test-id", callback )
 
-                expect( fetchStub ).to.haveBeenCalled()
-                expect( callback ).notTo.haveBeenCalled()
+                expect( httpStub ).was.called()
+                expect( callback ).wasNot.called()
             end
         },
         {
@@ -178,14 +178,14 @@ return {
 
                 local callback = stub()
 
-                local fetchStub = stub( http, "Fetch" ).with( function( _, success )
-                    expect( success, "", "", "", 200 ).to.errWith( "Invalid JSON" )
+                local httpStub = stub( _G, "HTTP" ).with( function( options )
+                    expect( options.success, "", "", "", 200 ).to.errWith( "Invalid JSON" )
                 end )
 
                 express:GetSize( "test-id", callback )
 
-                expect( fetchStub ).to.haveBeenCalled()
-                expect( callback ).notTo.haveBeenCalled()
+                expect( httpStub ).was.called()
+                expect( callback ).wasNot.called()
             end
         },
         {
@@ -195,14 +195,14 @@ return {
 
                 local callback = stub()
 
-                local fetchStub = stub( http, "Fetch" ).with( function( _, success )
-                    expect( success, "", "", "", 200 ).to.errWith( "No size data" )
+                local httpStub = stub( _G, "HTTP" ).with( function( options )
+                    expect( options.success, "", "", "", 200 ).to.errWith( "No size data" )
                 end )
 
                 express:GetSize( "test-id", callback )
 
-                expect( fetchStub ).to.haveBeenCalled()
-                expect( callback ).notTo.haveBeenCalled()
+                expect( httpStub ).was.called()
+                expect( callback ).wasNot.called()
             end
         },
         {
@@ -212,14 +212,14 @@ return {
 
                 local callback = stub()
 
-                local fetchStub = stub( http, "Fetch" ).with( function( _, success )
-                    success( "", "", "", 200 )
+                local httpStub = stub( _G, "HTTP" ).with( function( options )
+                    options.success( "", "", "", 200 )
                 end )
 
                 express:GetSize( "test-id", callback )
 
-                expect( fetchStub ).to.haveBeenCalled()
-                expect( callback ).to.haveBeenCalled()
+                expect( httpStub ).was.called()
+                expect( callback ).was.called()
             end
         },
 
@@ -227,13 +227,13 @@ return {
         {
             name = "express.Put errors if the request fails",
             func = function()
-                local httpStub = stub( _G, "HTTP" ).with( function( reqData )
-                    expect( reqData.failed ).to.equal( error )
+                local httpStub = stub( _G, "HTTP" ).with( function( options )
+                    expect( options.failed ).to.equal( error )
                 end )
 
                 express:Put( "test-data", stub() )
 
-                expect( httpStub ).to.haveBeenCalled()
+                expect( httpStub ).was.called()
             end
         },
         {
@@ -241,14 +241,14 @@ return {
             func = function()
                 local callback = stub()
 
-                local httpStub = stub( _G, "HTTP" ).with( function( reqData )
-                    expect( reqData.success, 418, "" ).to.errWith( "Invalid response code: 418" )
+                local httpStub = stub( _G, "HTTP" ).with( function( options )
+                    expect( options.success, 418, "" ).to.errWith( "Invalid response code: 418" )
                 end )
 
                 express:Put( "test-data", callback )
 
-                expect( httpStub ).to.haveBeenCalled()
-                expect( callback ).notTo.haveBeenCalled()
+                expect( httpStub ).was.called()
+                expect( callback ).wasNot.called()
             end
         },
         {
@@ -258,14 +258,14 @@ return {
 
                 local callback = stub()
 
-                local httpStub = stub( _G, "HTTP" ).with( function( reqData )
-                    expect( reqData.success, 200, "" ).to.errWith( "Invalid JSON" )
+                local httpStub = stub( _G, "HTTP" ).with( function( options )
+                    expect( options.success, 200, "" ).to.errWith( "Invalid JSON" )
                 end )
 
                 express:Put( "test-data", callback )
 
-                expect( httpStub ).to.haveBeenCalled()
-                expect( callback ).notTo.haveBeenCalled()
+                expect( httpStub ).was.called()
+                expect( callback ).wasNot.called()
             end
         },
         {
@@ -275,14 +275,14 @@ return {
 
                 local callback = stub()
 
-                local httpStub = stub( _G, "HTTP" ).with( function( reqData )
-                    expect( reqData.success, 200, "" ).to.errWith( "No ID returned" )
+                local httpStub = stub( _G, "HTTP" ).with( function( options )
+                    expect( options.success, 200, "" ).to.errWith( "No ID returned" )
                 end )
 
                 express:Put( "test-data", callback )
 
-                expect( httpStub ).to.haveBeenCalled()
-                expect( callback ).notTo.haveBeenCalled()
+                expect( httpStub ).was.called()
+                expect( callback ).wasNot.called()
             end
         },
         {
@@ -292,14 +292,14 @@ return {
 
                 local callback = stub()
 
-                local httpStub = stub( _G, "HTTP" ).with( function( reqData )
-                    reqData.success( 200, "" )
+                local httpStub = stub( _G, "HTTP" ).with( function( options )
+                    options.success( 200, "" )
                 end )
 
                 express:Put( "test-data", callback )
 
-                expect( httpStub ).to.haveBeenCalled()
-                expect( callback ).to.haveBeenCalled()
+                expect( httpStub ).was.called()
+                expect( callback ).was.called()
             end
         },
 
@@ -311,7 +311,7 @@ return {
                 stub( express, "_getReceiver" ).returns( callback )
 
                 express:Call( "test-message" )
-                expect( callback ).to.haveBeenCalled()
+                expect( callback ).was.called()
             end
         },
 
@@ -323,7 +323,7 @@ return {
                 stub( express, "_getPreDlReceiver" ).returns( callback )
 
                 express:CallPreDownload( "test-message" )
-                expect( callback ).to.haveBeenCalled()
+                expect( callback ).was.called()
             end
         },
 
@@ -356,7 +356,7 @@ return {
 
                 express:OnMessage()
 
-                expect( getSizeStub ).to.haveBeenCalled()
+                expect( getSizeStub ).was.called()
             end
         },
         {
@@ -373,7 +373,7 @@ return {
 
                 express:OnMessage()
 
-                expect( getSizeStub ).notTo.haveBeenCalled()
+                expect( getSizeStub ).wasNot.called()
             end
         },
         {

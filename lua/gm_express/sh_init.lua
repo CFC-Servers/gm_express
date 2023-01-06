@@ -54,7 +54,14 @@ function express:Get( id, cb )
         cb( decodedData, hash )
     end
 
-    http.Fetch( url, success, error, self._bytesHeaders )
+    HTTP( {
+        method = "GET",
+        url = url,
+        success = success,
+        failed = error,
+        headers = self._bytesHeaders,
+        timeout = self:_getTimeout()
+    } )
 end
 
 
@@ -74,7 +81,14 @@ function express:GetSize( id, cb )
         cb( tonumber( size ) )
     end
 
-    http.Fetch( url, success, error, self._jsonHeaders )
+    HTTP( {
+        method = "GET",
+        url = url,
+        success = success,
+        failed = error,
+        headers = self._jsonHeaders,
+        timeout = self:_getTimeout()
+    } )
 end
 
 
@@ -100,7 +114,8 @@ function express:Put( data, cb )
             ["Content-Length"] = #data,
             ["Accept"] = "application/json"
         },
-        type = "application/octet-stream"
+        type = "application/octet-stream",
+        timeout = CLIENT and 240 or 60
     } )
 end
 

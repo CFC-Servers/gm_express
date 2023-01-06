@@ -33,8 +33,8 @@ return {
 
                 express.shSend()
 
-                expect( send ).notTo.haveBeenCalled()
-                expect( sendToServer ).to.haveBeenCalled()
+                expect( send ).wasNot.called()
+                expect( sendToServer ).was.called()
             end,
 
             cleanup = function()
@@ -51,8 +51,8 @@ return {
 
                 express.shSend()
 
-                expect( send ).to.haveBeenCalled()
-                expect( sendToServer ).notTo.haveBeenCalled()
+                expect( send ).was.called()
+                expect( sendToServer ).wasNot.called()
             end
         },
 
@@ -224,7 +224,7 @@ return {
                 express._waitingForAccess = { waitingStub }
 
                 express:SetAccess( "access-token" )
-                expect( waitingStub ).to.haveBeenCalled()
+                expect( waitingStub ).was.called()
                 expect( #express._waitingForAccess ).to.equal( 0 )
             end,
 
@@ -243,7 +243,7 @@ return {
                 end )
 
                 express.CheckRevision()
-                expect( fetchStub ).to.haveBeenCalled()
+                expect( fetchStub ).was.called()
             end
         },
         {
@@ -257,7 +257,7 @@ return {
                 end )
 
                 express.CheckRevision()
-                expect( fetchStub ).to.haveBeenCalled()
+                expect( fetchStub ).was.called()
             end
         },
         {
@@ -271,7 +271,7 @@ return {
                 end )
 
                 express.CheckRevision()
-                expect( fetchStub ).to.haveBeenCalled()
+                expect( fetchStub ).was.called()
             end
         },
         {
@@ -287,7 +287,7 @@ return {
                 end )
 
                 express.CheckRevision()
-                expect( fetchStub ).to.haveBeenCalled()
+                expect( fetchStub ).was.called()
             end
         },
         {
@@ -306,7 +306,7 @@ return {
                 end )
 
                 express.CheckRevision()
-                expect( fetchStub ).to.haveBeenCalled()
+                expect( fetchStub ).was.called()
             end,
 
             cleanup = function( state )
@@ -327,7 +327,7 @@ return {
                 end )
 
                 express.CheckRevision()
-                expect( fetchStub ).to.haveBeenCalled()
+                expect( fetchStub ).was.called()
             end,
 
             cleanup = function( state )
@@ -348,7 +348,7 @@ return {
                 local getStub = stub( express, "Get" )
                 express:_get( "id", "callback" )
 
-                expect( getStub ).to.haveBeenCalled()
+                expect( getStub ).was.called()
                 expect( #express._waitingForAccess ).to.equal( 0 )
             end,
             cleanup = function( state )
@@ -367,7 +367,7 @@ return {
                 local getStub = stub( express, "Get" )
                 express:_get( "id", "callback" )
 
-                expect( getStub ).notTo.haveBeenCalled()
+                expect( getStub ).wasNot.called()
                 expect( #express._waitingForAccess ).to.equal( 1 )
             end,
             cleanup = function( state )
@@ -389,9 +389,9 @@ return {
 
                 express:_put( "data", "callback" )
 
-                expect( encode ).to.haveBeenCalled()
-                expect( compress ).to.haveBeenCalled()
-                expect( putStub ).to.haveBeenCalled()
+                expect( encode ).was.called()
+                expect( compress ).was.called()
+                expect( putStub ).was.called()
             end
         },
         {
@@ -414,7 +414,7 @@ return {
                     "Express: Data too large (" .. expectedBytes .. " bytes)"
                 )
 
-                expect( putStub ).notTo.haveBeenCalled()
+                expect( putStub ).wasNot.called()
             end,
 
             cleanup = function( state )
@@ -444,8 +444,8 @@ return {
                 express:_put( mockData, mockCallback )
 
                 timer.Simple( 0.1, function()
-                    expect( putStub ).notTo.haveBeenCalled()
-                    expect( mockCallback ).to.haveBeenCalled()
+                    expect( putStub ).wasNot.called()
+                    expect( mockCallback ).was.called()
                     done()
                 end )
             end,
@@ -474,8 +474,8 @@ return {
 
                 express:_put( mockData, mockCallback )
 
-                expect( putStub ).to.haveBeenCalled()
-                expect( mockCallback ).to.haveBeenCalled()
+                expect( putStub ).was.called()
+                expect( mockCallback ).was.called()
                 expect( express._putCache[mockHash] ).to.equal( mockId )
             end,
 
@@ -500,9 +500,9 @@ return {
 
                 express:_send( "test-message", "test-data", {} )
 
-                expect( putStub ).to.haveBeenCalled()
-                expect( setExpected ).notTo.haveBeenCalled()
-                expect( shSend ).to.haveBeenCalled()
+                expect( putStub ).was.called()
+                expect( setExpected ).wasNot.called()
+                expect( shSend ).was.called()
             end
         },
         {
@@ -520,9 +520,9 @@ return {
 
                 express:_send( "test-message", "test-data", {}, stub() )
 
-                expect( putStub ).to.haveBeenCalled()
-                expect( setExpected ).to.haveBeenCalled()
-                expect( shSend ).to.haveBeenCalled()
+                expect( putStub ).was.called()
+                expect( setExpected ).was.called()
+                expect( shSend ).was.called()
             end
         },
 
@@ -641,8 +641,8 @@ return {
 
                 callbackFunc()
 
-                expect( registerStub ).to.haveBeenCalled()
-                expect( checkRevisionStub ).to.haveBeenCalled()
+                expect( registerStub ).was.called()
+                expect( checkRevisionStub ).was.called()
             end
         },
 
@@ -670,7 +670,29 @@ return {
             func = function()
                 expect( express._checkResponseCode, nil ).to.errWith( "Express: Invalid response code (nil)" )
             end
-        }
+        },
 
+        -- express._getTimeout
+        {
+            name = "express._getTimeout returns 240 on CLIENT",
+            func = function()
+                _G.CLIENT = true
+                _G.SERVER = false
+
+                local timeout = express:_getTimeout()
+                expect( timeout ).to.equal( 240 )
+            end,
+            cleanup = function()
+                _G.CLIENT = false
+                _G.SERVER = true
+            end
+        },
+        {
+            name = "express._getTimeout returns 60 on SERVER",
+            func = function()
+                local timeout = express:_getTimeout()
+                expect( timeout ).to.equal( 60 )
+            end
+        }
     }
 }
