@@ -96,7 +96,7 @@ return {
                 local callback = stub()
 
                 local httpStub = stub( _G, "HTTP" ).with( function( options )
-                    expect( options.success, "", "", "", 418 ).to.errWith( "Express: Invalid response code (418)" )
+                    expect( options.success, 418, "" ).to.errWith( "Express: Invalid response code (418)" )
                 end )
 
                 express:Get( "test-id", callback )
@@ -114,7 +114,7 @@ return {
                 local callback = stub()
 
                 local httpStub = stub( _G, "HTTP" ).with( function( options )
-                    expect( options.success, "", "", "", 200 ).to.errWith( "Invalid data" )
+                    expect( options.success, 200, "" ).to.errWith( "Invalid data" )
                 end )
 
                 express:Get( "test-id", callback )
@@ -133,7 +133,7 @@ return {
                 local callback = stub()
 
                 local httpStub = stub( _G, "HTTP" ).with( function( options )
-                    options.success( "", "", "", 200 )
+                    options.success( 200, "" )
                 end )
 
                 express:Get( "test-id", callback )
@@ -162,7 +162,7 @@ return {
                 local callback = stub()
 
                 local httpStub = stub( _G, "HTTP" ).with( function( options )
-                    expect( options.success, "", "", "", 418 ).to.errWith( "Express: Invalid response code (418)" )
+                    expect( options.success, 418, "" ).to.errWith( "Express: Invalid response code (418)" )
                 end )
 
                 express:GetSize( "test-id", callback )
@@ -179,7 +179,7 @@ return {
                 local callback = stub()
 
                 local httpStub = stub( _G, "HTTP" ).with( function( options )
-                    expect( options.success, "", "", "", 200 ).to.errWith( "Invalid JSON" )
+                    expect( options.success, 200, "" ).to.errWith( "Invalid JSON" )
                 end )
 
                 express:GetSize( "test-id", callback )
@@ -196,7 +196,7 @@ return {
                 local callback = stub()
 
                 local httpStub = stub( _G, "HTTP" ).with( function( options )
-                    expect( options.success, "", "", "", 200 ).to.errWith( "No size data" )
+                    expect( options.success, 200, "" ).to.errWith( "No size data" )
                 end )
 
                 express:GetSize( "test-id", callback )
@@ -213,7 +213,7 @@ return {
                 local callback = stub()
 
                 local httpStub = stub( _G, "HTTP" ).with( function( options )
-                    options.success( "", "", "", 200 )
+                    options.success( 200, "" )
                 end )
 
                 express:GetSize( "test-id", callback )
@@ -242,7 +242,7 @@ return {
                 local callback = stub()
 
                 local httpStub = stub( _G, "HTTP" ).with( function( options )
-                    expect( options.success, 418, "" ).to.errWith( "Invalid response code: 418" )
+                    expect( options.success, 418, "" ).to.errWith( "Express: Invalid response code (418)" )
                 end )
 
                 express:Put( "test-data", callback )
