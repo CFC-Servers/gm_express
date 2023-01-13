@@ -1,6 +1,6 @@
 local function getHookName( ply )
-    local steamID = ply:SteamID64()
-    return "GM_FullLoad_" .. steamID
+    local steamID64 = ply:SteamID64()
+    return "GM_FullLoad_" .. steamID64
 end
 
 hook.Add( "PlayerInitialSpawn", "GM_FullLoadSetup", function( spawnedPly )

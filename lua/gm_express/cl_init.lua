@@ -12,3 +12,9 @@ end
 function express:SetExpected( hash, cb )
     self._awaitingProof[hash] = cb
 end
+
+
+hook.Add( "OnExpressLoaded", "Express_AlertReady", function()
+    net.Start( "express_loaded" )
+    net.SendToServer()
+end )
