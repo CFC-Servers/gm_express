@@ -66,7 +66,7 @@ function express.OnPlayerLoaded( ply )
 
     ply.expressLoaded = true
 
-    hook.Run( "OnPlayerLoadedExpress", ply )
+    hook.Run( "OnPlayerExpressLoaded", ply )
 end
 
 net.Receive( "express_loaded", express.OnPlayerLoaded )
