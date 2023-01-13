@@ -55,9 +55,18 @@ function express:SetExpected( hash, cb, plys )
 end
 
 
+-- Runs a hook when a player has loaded Express --
 -- Send the player their access token as soon as it's safe to do so --
-hook.Add( "PlayerFullLoad", "Express_Access", function( ply )
+function express.OnPlayerLoaded( ply )
+    if ply.expressLoaded then return end
+
     net.Start( "express_access" )
     net.WriteString( express._clientAccess )
     net.Send( ply )
-end )
+
+    ply.expressLoaded = true
+
+    hook.Run( "OnPlayerLoadedExpress", ply )
+end
+
+net.Receive( "express_loaded", express.OnPlayerLoaded )

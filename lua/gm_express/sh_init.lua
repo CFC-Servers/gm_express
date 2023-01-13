@@ -4,6 +4,7 @@ require( "pon" )
 if SERVER then
     util.AddNetworkString( "express" )
     util.AddNetworkString( "express_proof" )
+    util.AddNetworkString( "express_loaded" )
 end
 
 express = {}
@@ -199,3 +200,5 @@ if SERVER then
 else
     include( "cl_init.lua" )
 end
+
+hook.Run( "OnExpressLoaded" )
