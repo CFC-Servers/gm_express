@@ -102,6 +102,10 @@ end
 -- Encodes and compresses the given data, then sends it to the API if not already cached --
 function express:_put( data, cb )
     data = util.Compress( pon.encode( data ) )
+    if #data == 0 then
+        error( "Express: Tried to send empty data!" )
+    end
+
     if #data > self._maxDataSize then
         error( "Express: Data too large (" .. #data .. " bytes)" )
     end
