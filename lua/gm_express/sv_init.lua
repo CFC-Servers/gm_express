@@ -1,6 +1,5 @@
 require( "playerload" )
 util.AddNetworkString( "express_access" )
-util.AddNetworkString( "express_receiver_made" )
 
 
 -- Broadcasts the given data to all connected players --
