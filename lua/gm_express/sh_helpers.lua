@@ -205,7 +205,7 @@ cvars.AddChangeCallback( "express_domain_cl", function( _, _, new )
 end, "domain_check" )
 
 
-hook.Add( "OnExpressLoaded", "Express_HTTPInit", function()
+hook.Add( "ExpressLoaded", "Express_HTTPInit", function()
     hook.Add( "Tick", "Express_RevisionCheck", function()
         hook.Remove( "Tick", "Express_RevisionCheck" )
         if SERVER then express:Register() end

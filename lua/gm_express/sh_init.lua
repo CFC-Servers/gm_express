@@ -208,4 +208,4 @@ else
     include( "cl_init.lua" )
 end
 
-hook.Run( "OnExpressLoaded" )
+hook.Run( "ExpressLoaded" )

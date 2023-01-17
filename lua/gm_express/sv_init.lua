@@ -58,7 +58,7 @@ end
 -- Runs a hook when a player makes a new express Receiver --
 function express._onReceiverMade( _, ply )
     local name = string.lower( net.ReadString() )
-    hook.Run( "OnExpressPlayerReceiver", ply, name )
+    hook.Run( "ExpressPlayerReceiver", ply, name )
 end
 
 net.Receive( "express_receiver_made", express._onReceiverMade )
