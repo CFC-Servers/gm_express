@@ -556,6 +556,7 @@ return {
             end,
             cleanup = function( state )
                 express.access = state.original_access
+                express._waitingForAccess = {}
             end
         },
 

@@ -353,7 +353,7 @@ return {
                 stub( express, "_getPreDlReceiver" ).returns( stub() )
                 stub( net, "ReadString" ).returnsSequence( { "test-message" } )
 
-                local getSizeStub = stub( express, "GetSize" )
+                local getSizeStub = stub( express, "_getSize" )
 
                 express:OnMessage()
 
