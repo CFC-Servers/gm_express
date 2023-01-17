@@ -38,20 +38,39 @@ return {
 
                 expect( net.Receivers["express"] ).to.exist()
                 expect( net.Receivers["express_proof"] ).to.exist()
+                expect( net.Receivers["express_receivers_made"] ).to.exist()
             end
         },
 
-        -- express.Receive
+        -- express:_setReceiver
         {
-            name = "express.Receive adds the given callback to the receivers table and normalizes the name",
+            name = "express:_setReceiver adds the given callback to the receivers table and normalizes the name",
             func = function( state )
                 state.original_receivers = table.Copy( express._receivers )
                 express._receivers = {}
 
                 local callback = stub()
-                express.Receive( "TEST-MESSAGE", callback )
+                express:_setReceiver( "TEST-MESSAGE", callback )
 
                 expect( express._receivers["test-message"] ).to.equal( callback )
+            end,
+
+            cleanup = function( state )
+                express._receivers = state.original_receivers
+            end
+        },
+
+        -- express.ClearReceiver
+        {
+            name = "express.ClearReceiver removes the callback for the given message and normalizes the name",
+            func = function( state )
+                state.original_receivers = table.Copy( express._receivers )
+                express._receivers = {}
+
+                express.Receive( "test-message", stub() )
+
+                express.ClearReceiver( "TEST-MESSAGE" )
+                expect( express._receivers["test-message"] ).toNot.exist()
             end,
 
             cleanup = function( state )
@@ -334,7 +353,7 @@ return {
                 stub( express, "_getPreDlReceiver" ).returns( stub() )
                 stub( net, "ReadString" ).returnsSequence( { "test-message" } )
 
-                local getSizeStub = stub( express, "GetSize" )
+                local getSizeStub = stub( express, "_getSize" )
 
                 express:OnMessage()
 

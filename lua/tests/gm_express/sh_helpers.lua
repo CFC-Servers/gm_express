@@ -378,10 +378,13 @@ return {
 
         -- express._put
         {
-            name = "express._put encodes and compresses the given data",
-            func = function()
+            name = "express._put encodes and compresses the given data if the access token is set",
+            func = function( state )
                 -- Sanity check
                 expect( table.Count( express._putCache ) ).to.equal( 0 )
+
+                state.original_access = state.original_access or express.access
+                express.access = "access-token"
 
                 local encode = stub( pon, "encode" )
                 local compress = stub( util, "Compress" ).returns( "hello" )
@@ -392,11 +395,42 @@ return {
                 expect( encode ).was.called()
                 expect( compress ).was.called()
                 expect( putStub ).was.called()
+            end,
+            cleanup = function( state )
+                express.access = state.original_access
+            end
+        },
+        {
+            name = "express._put queues the request if the access token is not set",
+            func = function( state )
+                -- Sanity check
+                expect( table.Count( express._putCache ) ).to.equal( 0 )
+                expect( #express._waitingForAccess ).to.equal( 0 )
+
+                state.original_access = state.original_access or express.access
+                express.access = nil
+
+                local encode = stub( pon, "encode" )
+                local compress = stub( util, "Compress" ).returns( "hello" )
+                local putStub = stub( express, "Put" )
+
+                express:_put( { "data" }, "callback" )
+
+                expect( encode ).was.called()
+                expect( compress ).was.called()
+                expect( putStub ).wasNot.called()
+
+                expect( #express._waitingForAccess ).to.equal( 1 )
+            end,
+            cleanup = function( state )
+                express.access = state.original_access
+                express._waitingForAccess = {}
             end
         },
         {
             name = "express._put rejects data that is too large",
             func = function( state )
+                state.original_access = state.original_access or express.access
                 state.original_maxDataSize = state.original_maxDataSize or express._maxDataSize
                 express._maxDataSize = 0
 
@@ -418,6 +452,7 @@ return {
             end,
 
             cleanup = function( state )
+                express.access = state.original_access
                 express._maxDataSize = state.original_maxDataSize
             end
         },
@@ -456,9 +491,12 @@ return {
         },
         {
             name = "express._put on success, calls given callback and stores response ID in cache",
-            func = function()
+            func = function( state )
                 -- Sanity check
                 expect( table.Count( express._putCache ) ).to.equal( 0 )
+
+                state.original_access = state.original_access or express.access
+                express.access = "access-token"
 
                 local mockData = "hello"
                 local mockId = "test-id"
@@ -479,12 +517,51 @@ return {
                 expect( express._putCache[mockHash] ).to.equal( mockId )
             end,
 
-            cleanup = function()
+            cleanup = function( state )
                 express._putCache = {}
+                express.access = state.original_access
             end
         },
 
-        -- express._send
+        -- express:_getSize
+        {
+            name = "express:_getSize calls express:GetSize if access token is set",
+            func = function( state )
+                state.original_access = state.original_access or express.access
+                express.access = "access-token"
+
+                local getSizeStub = stub( express, "GetSize" )
+                express:_getSize( "id", stub() )
+
+                expect( getSizeStub ).was.called()
+            end,
+            cleanup = function( state )
+                express.access = state.original_access
+            end
+        },
+        {
+            name = "express:_getSize queues the GetSize call if access token is not set",
+            func = function( state )
+                -- Sanity check
+                expect( #express._waitingForAccess ).to.equal( 0 )
+
+                state.original_access = state.original_access or express.access
+                express.access = nil
+
+                local getSizeStub = stub( express, "GetSize" )
+                express:_getSize( "id", stub() )
+
+                expect( getSizeStub ).wasNot.called()
+                expect( #express._waitingForAccess ).to.equal( 1 )
+            end,
+            cleanup = function( state )
+                express.access = state.original_access
+                express._waitingForAccess = {}
+            end
+        },
+
+
+        -- express:_send
         {
             name = "express._send calls _put with a callback that nets message info and does not set expected if no onProof was provided",
             func = function()

@@ -2,6 +2,12 @@ require( "playerload" )
 util.AddNetworkString( "express_access" )
 
 
+-- Registers a basic receiver --
+function express.Receive( message, cb )
+    express:_setReceiver( message, cb )
+end
+
+
 -- Broadcasts the given data to all connected players --
 function express.Broadcast( message, data, onProof )
     express.Send( message, data, player.GetAll(), onProof )
@@ -55,9 +61,24 @@ function express:SetExpected( hash, cb, plys )
 end
 
 
+-- Runs a hook when a player makes a new express Receiver --
+function express._onReceiverMade( _, ply )
+    local messageCount = net.ReadUInt( 8 )
+
+    for _ = 1, messageCount do
+        local name = string.lower( net.ReadString() )
+        hook.Run( "ExpressPlayerReceiver", ply, name )
+    end
+end
+
+net.Receive( "express_receivers_made", express._onReceiverMade )
+
+
 -- Send the player their access token as soon as it's safe to do so --
-hook.Add( "PlayerFullLoad", "Express_Access", function( ply )
+function express._onPlayerLoaded( ply )
     net.Start( "express_access" )
     net.WriteString( express._clientAccess )
     net.Send( ply )
-end )
+end
+
+hook.Add( "PlayerFullLoad", "Express_PlayerReady", express._onPlayerLoaded )

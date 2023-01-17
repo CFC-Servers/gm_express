@@ -4,6 +4,7 @@ require( "pon" )
 if SERVER then
     util.AddNetworkString( "express" )
     util.AddNetworkString( "express_proof" )
+    util.AddNetworkString( "express_receivers_made" )
 end
 
 express = {}
@@ -14,21 +15,12 @@ express._preDlReceivers = {}
 express._maxDataSize = 24 * 1024 * 1024
 express._jsonHeaders = { ["Content-Type"] = "application/json" }
 express._bytesHeaders = { ["Accept"] = "application/octet-stream" }
-express.domain = CreateConVar(
-    "express_domain", "gmod.express", FCVAR_ARCHIVE + FCVAR_REPLICATED, "The domain of the Express server"
-)
-
--- Useful for self-hosting if you need to set express_domain to localhost
--- and direct clients to a global IP/domain to hit the same service
-express.domain_cl = CreateConVar(
-    "express_domain_cl", "", FCVAR_ARCHIVE + FCVAR_REPLICATED, "The client-specific domain of the Express server. If empty, express_domain will be used."
-)
 
 
--- Registers a basic receiver --
-function express.Receive( message, cb )
+-- Removes a receiver --
+function express.ClearReceiver( message )
     message = string.lower( message )
-    express._receivers[message] = cb
+    express._receivers[message] = nil
 end
 
 
@@ -79,6 +71,10 @@ function express:GetSize( id, cb )
         assert( sizeHolder, "Invalid JSON" )
 
         local size = sizeHolder.size
+        if not size then
+            print( "Express: Failed to get size for ID '" .. id .. "'.", code )
+            print( body )
+        end
         assert( size, "No size data" )
 
         cb( tonumber( size ) )
@@ -170,7 +166,7 @@ function express.OnMessage( _, ply )
     end
 
     if express:_getPreDlReceiver( message ) then
-        return express:GetSize( id, makeRequest )
+        return express:_getSize( id, makeRequest )
     end
 
     makeRequest()
@@ -202,3 +198,5 @@ if SERVER then
 else
     include( "cl_init.lua" )
 end
+
+hook.Run( "ExpressLoaded" )

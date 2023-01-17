@@ -3,6 +3,15 @@ express.version = 1
 express.revision = 1
 express._putCache = {}
 express._waitingForAccess = {}
+express.domain = CreateConVar(
+    "express_domain", "gmod.express", FCVAR_ARCHIVE + FCVAR_REPLICATED, "The domain of the Express server"
+)
+
+-- Useful for self-hosting if you need to set express_domain to localhost
+-- and direct clients to a global IP/domain to hit the same service
+express.domain_cl = CreateConVar(
+    "express_domain_cl", "", FCVAR_ARCHIVE + FCVAR_REPLICATED, "The client-specific domain of the Express server. If empty, express_domain will be used."
+)
 
 
 -- Runs the correct net Send function based on the realm --
@@ -99,6 +108,19 @@ function express:_get( id, cb )
 end
 
 
+-- Runs the main :GetSize function, or queues the request if no access token is set --
+-- FIXME: If this gets delayed because it doesn't have an access token, the PreDl Receiver will not be able to stop the download --
+function express:_getSize( id, cb )
+    if self.access then
+        return self:GetSize( id, cb )
+    end
+
+    table.insert( self._waitingForAccess, function()
+        self:GetSize( id, cb )
+    end )
+end
+
+
 -- Encodes and compresses the given data, then sends it to the API if not already cached --
 function express:_put( data, cb )
     if table.Count( data ) == 0 then
@@ -128,7 +150,13 @@ function express:_put( data, cb )
         cb( id, hash )
     end
 
-    return self:Put( data, wrapCb )
+    if self.access then
+        return self:Put( data, wrapCb )
+    end
+
+    table.insert( self._waitingForAccess, function()
+        self:Put( data, wrapCb )
+    end )
 end
 
 
@@ -146,6 +174,13 @@ function express:_send( message, data, plys, onProof )
 
         express.shSend( plys )
     end )
+end
+
+
+-- Assigns a callback to the given message --
+function express:_setReceiver( message, cb )
+    message = string.lower( message )
+    self._receivers[message] = cb
 end
 
 
@@ -196,9 +231,10 @@ cvars.AddChangeCallback( "express_domain_cl", function( _, _, new )
 end, "domain_check" )
 
 
--- Tick is the earliest shared hook where HTTP is available
-hook.Add( "Tick", "Express_RevisionCheck", function()
-    hook.Remove( "Tick", "Express_RevisionCheck" )
-    if SERVER then express:Register() end
-    express:CheckRevision()
+hook.Add( "ExpressLoaded", "Express_HTTPInit", function()
+    hook.Add( "Tick", "Express_RevisionCheck", function()
+        hook.Remove( "Tick", "Express_RevisionCheck" )
+        if SERVER then express:Register() end
+        express:CheckRevision()
+    end )
 end )
