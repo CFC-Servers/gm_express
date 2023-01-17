@@ -50,8 +50,7 @@ function express:Get( id, cb )
         local encodedData = util.Decompress( body, self._maxDataSize )
 
         if #encodedData == 0 then
-            print( "Express: Failed to decompress data for ID " .. id )
-            cb( "", hash )
+            error( "Express: Failed to decompress data for ID '" .. id .. "'." )
         else
             local decodedData = pon.decode( encodedData )
             cb( decodedData, hash )
