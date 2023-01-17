@@ -42,15 +42,15 @@ return {
             end
         },
 
-        -- express._setReceiver
+        -- express:_setReceiver
         {
-            name = "express._setReceiver adds the given callback to the receivers table and normalizes the name",
+            name = "express:_setReceiver adds the given callback to the receivers table and normalizes the name",
             func = function( state )
                 state.original_receivers = table.Copy( express._receivers )
                 express._receivers = {}
 
                 local callback = stub()
-                express._setReceiver( "TEST-MESSAGE", callback )
+                express:_setReceiver( "TEST-MESSAGE", callback )
 
                 expect( express._receivers["test-message"] ).to.equal( callback )
             end,
