@@ -1,5 +1,6 @@
 require( "playerload" )
 util.AddNetworkString( "express_access" )
+util.AddNetworkString( "express_receiver_made" )
 
 
 -- Broadcasts the given data to all connected players --
@@ -55,14 +56,20 @@ function express:SetExpected( hash, cb, plys )
 end
 
 
+-- Runs a hook when a player makes a new express Receiver --
+function express._onReceiverMade( _, ply )
+    local name = net.ReadString()
+    hook.Run( "OnExpressPlayerReceiver", ply, name )
+end
+
+net.Receive( "express_receiver_made", express._onReceiverMade )
+
+
 -- Send the player their access token as soon as it's safe to do so --
--- Also Runs a notification hook that a player is fully ready to receive Express messages --
 function express.OnPlayerLoaded( ply )
     net.Start( "express_access" )
     net.WriteString( express._clientAccess )
     net.Send( ply )
-
-    hook.Run( "OnPlayerExpressLoaded", ply )
 end
 
 hook.Add( "PlayerFullLoad", "Express_PlayerReady", express.OnPlayerLoaded )
