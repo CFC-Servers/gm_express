@@ -523,7 +523,44 @@ return {
             end
         },
 
-        -- express._send
+        -- express:_getSize
+        {
+            name = "express:_getSize calls express:GetSize if access token is set",
+            func = function( state )
+                state.original_access = state.original_access or express.access
+                express.access = "access-token"
+
+                local getSizeStub = stub( express, "GetSize" )
+                express:_getSize( "id", stub() )
+
+                expect( getSizeStub ).was.called()
+            end,
+            cleanup = function( state )
+                express.access = state.original_access
+            end
+        },
+        {
+            name = "express:_getSize queues the GetSize call if access token is not set",
+            func = function( state )
+                -- Sanity check
+                expect( #express._waitingForAccess ).to.equal( 0 )
+
+                state.original_access = state.original_access or express.access
+                express.access = nil
+
+                local getSizeStub = stub( express, "GetSize" )
+                express:_getSize( "id", stub() )
+
+                expect( getSizeStub ).wasNot.called()
+                expect( #express._waitingForAccess ).to.equal( 1 )
+            end,
+            cleanup = function( state )
+                express.access = state.original_access
+            end
+        },
+
+
+        -- express:_send
         {
             name = "express._send calls _put with a callback that nets message info and does not set expected if no onProof was provided",
             func = function()

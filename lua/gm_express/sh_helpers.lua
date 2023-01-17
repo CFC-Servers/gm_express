@@ -109,6 +109,7 @@ end
 
 
 -- Runs the main :GetSize function, or queues the request if no access token is set --
+-- FIXME: If this gets delayed because it doesn't have an access token, the PreDl Receiver will not be able to stop the download --
 function express:_getSize( id, cb )
     if self.access then
         return self:GetSize( id, cb )
