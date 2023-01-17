@@ -168,6 +168,30 @@ end )
 </details>
 
 <details>
+<summary><h4> <strong><img src="https://user-images.githubusercontent.com/7936439/200705159-4c51d043-82a3-4d15-a335-291bb26a5528.png" width="15"> <code>express.ClearReceiver( string name )</code></strong> </h4></summary>
+
+#### <ins>**Description**</ins>
+Removes the callback associated with the given message name. Much like `net.Receive( message, nil )`.
+
+#### <ins>**Arguments**</ins>
+1. **`string name`**
+    - The name of the message. Think of this just like the name given to `net.Receive`
+    - This parameter is case-insensitive, it will be `string.lower`'d
+
+#### <ins>**Example**</ins>
+Create a new Receiver when the module is enabled, and remove the receiver when it's disabled
+```lua
+local function enable()
+    express.Receive( "example", processData )
+end
+
+local function disable()
+    express.ClearReceiver( "example" )
+end
+```
+</details>
+
+<details>
 <summary><h4> <strong><img src="https://user-images.githubusercontent.com/7936439/200705060-b5e57f56-a5a1-4c95-abfa-0d568be0aad6.png" width="15"> <code>express.Send( string name, table data, function onProof )</code></strong> </h4></summary>
 
 #### <ins>**Description**</ins>
