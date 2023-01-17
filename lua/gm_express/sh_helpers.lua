@@ -137,7 +137,13 @@ function express:_put( data, cb )
         cb( id, hash )
     end
 
-    return self:Put( data, wrapCb )
+    if self.access then
+        return self:Put( data, wrapCb )
+    end
+
+    table.insert( self._waitingForAccess, function()
+        self:Put( data, wrapCb )
+    end )
 end
 
 
