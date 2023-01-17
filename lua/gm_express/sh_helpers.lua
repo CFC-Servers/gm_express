@@ -108,6 +108,18 @@ function express:_get( id, cb )
 end
 
 
+-- Runs the main :GetSize function, or queues the request if no access token is set --
+function express:_getSize( id, cb )
+    if self.access then
+        return self:GetSize( id, cb )
+    end
+
+    table.insert( self._waitingForAccess, function()
+        self:GetSize( id, cb )
+    end )
+end
+
+
 -- Encodes and compresses the given data, then sends it to the API if not already cached --
 function express:_put( data, cb )
     if table.Count( data ) == 0 then

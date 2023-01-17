@@ -162,7 +162,7 @@ function express.OnMessage( _, ply )
     end
 
     if express:_getPreDlReceiver( message ) then
-        return express:GetSize( id, makeRequest )
+        return express:_getSize( id, makeRequest )
     end
 
     makeRequest()

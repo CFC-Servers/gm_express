@@ -2,17 +2,17 @@ express._receiverMadeQueue = {}
 express._canSendReceiverMade = false
 
 
-hook.Add( "InitPostEntity", "Express_ReceiverMadeAlert", function()
+net.Receive( "express_access", function()
+    express:SetAccess( net.ReadString() )
+    express:_sendReceiversMadeQueue()
+end )
+
+function express:_sendReceiversMadeQueue()
     express._canSendReceiverMade = true
 
     local messages = table.GetKeys( express._receiverMadeQueue )
     express:_alertReceiversMade( unpack( messages ) )
-end )
-
-net.Receive( "express_access", function()
-    express:SetAccess( net.ReadString() )
-end )
-
+end
 
 function express:_alertReceiversMade( ... )
     local names = { ... }
