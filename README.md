@@ -299,7 +299,7 @@ end
 <summary><h3>:hook: Hooks</h3></summary>
 
 <details>
-<summary><h4> <strong><img src="https://user-images.githubusercontent.com/7936439/200705110-55b19d08-b342-4e94-a7c3-6b45baf98c2b.png" width="15"> <code>ExpressLoaded()</code></strong> </h4></summary>
+<summary><h4> <strong><img src="https://user-images.githubusercontent.com/7936439/200705159-4c51d043-82a3-4d15-a335-291bb26a5528.png" width="15"> <code>ExpressLoaded()</code></strong> </h4></summary>
 
 #### <ins>**Description**</ins>
 This hook runs when all Express code has loaded. All `express` methods are available. Runs exactly once on both realms.
@@ -350,6 +350,8 @@ hook.Add( "ExpressLoaded", "MyAddon_SetupExpress", function()
     end )
 end )
 ```
+</details>
+
 </details>
 
 
@@ -406,13 +408,14 @@ Some metrics:
  - It took 1 minute and 50 seconds before the dupe was even spawnable (it had to send the full dupe over to the server first)
  - After an additional 3 minutes, the meshes were finally downloaded and rendered
  - Again, while this was happening, no other player could use Adv2, Prop2Mesh, or Starfall
-
+ 
 With that same backport code, forcing Adv2 and Prop2Mesh to use Express, the entire process **takes under 30 seconds**!
 That's almost a **90%** speed increase.
 
 https://user-images.githubusercontent.com/7936439/202298284-bea90b54-c0b9-440b-b615-c9f58a1ed1f4.mp4
 
 </details>
+
 
 
 
