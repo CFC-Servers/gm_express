@@ -48,10 +48,13 @@ function express:Get( id, cb )
 
         local hash = util.SHA1( body )
         local encodedData = util.Decompress( body, self._maxDataSize )
-        assert( encodedData, "Invalid data" )
 
-        local decodedData = pon.decode( encodedData )
-        cb( decodedData, hash )
+        if #encodedData == 0 then
+            error( "Express: Failed to decompress data for ID '" .. id .. "'." )
+        else
+            local decodedData = pon.decode( encodedData )
+            cb( decodedData, hash )
+        end
     end
 
     HTTP( {

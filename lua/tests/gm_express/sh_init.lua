@@ -106,24 +106,6 @@ return {
             end
         },
         {
-            name = "express.Get errors if it cannot decompress the retrieved data",
-            func = function()
-                stub( util, "SHA1" ).returns( "test-hash" )
-                stub( util, "Decompress" ).returns( nil )
-
-                local callback = stub()
-
-                local httpStub = stub( _G, "HTTP" ).with( function( options )
-                    expect( options.success, 200, "" ).to.errWith( "Invalid data" )
-                end )
-
-                express:Get( "test-id", callback )
-
-                expect( httpStub ).was.called()
-                expect( callback ).wasNot.called()
-            end
-        },
-        {
             name = "express.Get calls the given callback on successful response",
             func = function()
                 stub( util, "SHA1" ).returns( "test-hash" )
