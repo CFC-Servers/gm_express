@@ -38,6 +38,7 @@ return {
 
                 expect( net.Receivers["express"] ).to.exist()
                 expect( net.Receivers["express_proof"] ).to.exist()
+                expect( net.Receivers["express_receivers_made"] ).to.exist()
             end
         },
 
@@ -55,32 +56,6 @@ return {
             end,
 
             cleanup = function( state )
-                express._receivers = state.original_receivers
-            end
-        },
-        {
-            name = "express.Receive sends a net message on CLIENT",
-            func = function( state )
-                state.original_server = SERVER
-                state.original_client = CLIENT
-                _G.SERVER = false
-                _G.CLIENT = true
-
-                state.original_receivers = table.Copy( express._receivers )
-                express._receivers = {}
-
-                -- TODO: Add a was.calledWith here when it exists
-                stub( net, "Start" )
-                stub( net, "WriteString" )
-                local sendToServerStub = stub( net, "SendToServer" )
-
-                express.Receive( "TEST-MESSAGE", stub() )
-                expect( sendToServerStub ).was.called()
-            end,
-
-            cleanup = function( state )
-                _G.SERVER = state.original_server
-                _G.CLIENT = state.original_client
                 express._receivers = state.original_receivers
             end
         },
