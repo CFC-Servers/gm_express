@@ -158,6 +158,13 @@ function express:_send( message, data, plys, onProof )
 end
 
 
+-- Assigns a callback to the given message --
+function express:_setReceiver( message, cb )
+    message = string.lower( message )
+    self._receivers[message] = cb
+end
+
+
 -- Returns the receiver set for the given message --
 function express:_getReceiver( message )
     message = string.lower( message )

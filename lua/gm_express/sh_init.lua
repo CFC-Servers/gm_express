@@ -4,7 +4,7 @@ require( "pon" )
 if SERVER then
     util.AddNetworkString( "express" )
     util.AddNetworkString( "express_proof" )
-    util.AddNetworkString( "express_receiver_made" )
+    util.AddNetworkString( "express_receivers_made" )
 end
 
 express = {}
@@ -15,19 +15,6 @@ express._preDlReceivers = {}
 express._maxDataSize = 24 * 1024 * 1024
 express._jsonHeaders = { ["Content-Type"] = "application/json" }
 express._bytesHeaders = { ["Accept"] = "application/octet-stream" }
-
-
--- Registers a basic receiver --
-function express.Receive( message, cb )
-    message = string.lower( message )
-    express._receivers[message] = cb
-
-    if SERVER then return end
-
-    net.Start( "express_receiver_made" )
-    net.WriteString( message )
-    net.SendToServer()
-end
 
 
 -- Removes a receiver --
