@@ -414,7 +414,7 @@ return {
                 local compress = stub( util, "Compress" ).returns( "hello" )
                 local putStub = stub( express, "Put" )
 
-                express:_put( "data", "callback" )
+                express:_put( { "data" }, "callback" )
 
                 expect( encode ).was.called()
                 expect( compress ).was.called()
