@@ -191,9 +191,10 @@ cvars.AddChangeCallback( "express_domain_cl", function( _, _, new )
 end, "domain_check" )
 
 
--- Tick is the earliest shared hook where HTTP is available
-hook.Add( "Tick", "Express_RevisionCheck", function()
-    hook.Remove( "Tick", "Express_RevisionCheck" )
-    if SERVER then express:Register() end
-    express:CheckRevision()
+hook.Run( "OnExpressLoaded", "Express_HTTPInit", function()
+    hook.Add( "Tick", "Express_RevisionCheck", function()
+        hook.Remove( "Tick", "Express_RevisionCheck" )
+        if SERVER then express:Register() end
+        express:CheckRevision()
+    end )
 end )

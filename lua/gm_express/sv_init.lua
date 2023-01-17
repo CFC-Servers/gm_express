@@ -58,15 +58,11 @@ end
 -- Runs a hook when a player has loaded Express --
 -- Send the player their access token as soon as it's safe to do so --
 function express.OnPlayerLoaded( ply )
-    if ply.expressLoaded then return end
-
     net.Start( "express_access" )
     net.WriteString( express._clientAccess )
     net.Send( ply )
 
-    ply.expressLoaded = true
-
     hook.Run( "OnPlayerExpressLoaded", ply )
 end
 
-net.Receive( "express_loaded", express.OnPlayerLoaded )
+hook.Add( "PlayerFullLoad", "Express_PlayerReady", express.OnPlayerLoaded )
