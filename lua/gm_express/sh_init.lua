@@ -29,6 +29,14 @@ function express.Receive( message, cb )
     net.SendToServer()
 end
 
+
+-- Removes a receiver --
+function express.ClearReceiver( message )
+    message = string.lower( message )
+    express._receivers[message] = nil
+end
+
+
 -- Registers a PreDownload receiver --
 function express.ReceivePreDl( message, preDl )
     message = string.lower( message )
