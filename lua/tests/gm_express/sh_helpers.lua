@@ -430,7 +430,7 @@ return {
         {
             name = "express._put rejects data that is too large",
             func = function( state )
-                state.original_access = express.access
+                state.original_access = state.original_access or express.access
                 state.original_maxDataSize = state.original_maxDataSize or express._maxDataSize
                 express._maxDataSize = 0
 
@@ -491,9 +491,12 @@ return {
         },
         {
             name = "express._put on success, calls given callback and stores response ID in cache",
-            func = function()
+            func = function( state )
                 -- Sanity check
                 expect( table.Count( express._putCache ) ).to.equal( 0 )
+
+                state.original_access = state.original_access or express.access
+                express.access = "access-token"
 
                 local mockData = "hello"
                 local mockId = "test-id"
@@ -514,8 +517,9 @@ return {
                 expect( express._putCache[mockHash] ).to.equal( mockId )
             end,
 
-            cleanup = function()
+            cleanup = function( state )
                 express._putCache = {}
+                express.access = state.original_access
             end
         },
 
