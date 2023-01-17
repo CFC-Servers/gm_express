@@ -387,7 +387,7 @@ return {
                 local compress = stub( util, "Compress" ).returns( "hello" )
                 local putStub = stub( express, "Put" )
 
-                express:_put( "data", "callback" )
+                express:_put( { "data" }, "callback" )
 
                 expect( encode ).was.called()
                 expect( compress ).was.called()
@@ -410,7 +410,7 @@ return {
                 stub( pon, "encode" )
                 stub( util, "Compress" ).returns( mockData )
 
-                expect( express._put, express, "data", stub() ).to.errWith(
+                expect( express._put, express, { "data" }, stub() ).to.errWith(
                     "Express: Data too large (" .. expectedBytes .. " bytes)"
                 )
 
@@ -429,7 +429,7 @@ return {
                 -- Sanity check
                 expect( table.Count( express._putCache ) ).to.equal( 0 )
 
-                local mockData = "hello"
+                local mockData = { "hello" }
                 local mockId = "test-id"
                 local mockHash = "test-hash"
                 local mockCallback = stub()
@@ -472,7 +472,7 @@ return {
                 stub( util, "Compress" ).returns( mockData )
                 stub( util, "SHA1" ).returns( mockHash )
 
-                express:_put( mockData, mockCallback )
+                express:_put( { "data" }, mockCallback )
 
                 expect( putStub ).was.called()
                 expect( mockCallback ).was.called()
