@@ -329,6 +329,14 @@ Called when `ply` creates a new receiver for `message` _(and, by extension, is r
 
 Once this hook is called, it is guaranteed to be safe to `express.Send` to the player.
 
+#### <ins>**Arguments**</ins>
+1. **`Player ply`**
+    - The player that registered a new Express Receiver
+2. **`string message`**
+    - The name of the message that a Receiver was registered for
+    - (**Note:** This will be `string.lower`'d before calling this hook, so expect it to always be lowercase)
+
+
 #### <ins>**Example**</ins>
 Sends an initial dataset to the client as soon as they're ready
 
