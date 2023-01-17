@@ -65,10 +65,10 @@ net.Receive( "express_receiver_made", express._onReceiverMade )
 
 
 -- Send the player their access token as soon as it's safe to do so --
-function express.OnPlayerLoaded( ply )
+function express._onPlayerLoaded( ply )
     net.Start( "express_access" )
     net.WriteString( express._clientAccess )
     net.Send( ply )
 end
 
-hook.Add( "PlayerFullLoad", "Express_PlayerReady", express.OnPlayerLoaded )
+hook.Add( "PlayerFullLoad", "Express_PlayerReady", express._onPlayerLoaded )
