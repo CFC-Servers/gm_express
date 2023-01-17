@@ -3,6 +3,7 @@ express.version = 1
 express.revision = 1
 express._putCache = {}
 express._waitingForAccess = {}
+express._awaitingAccessTimer = "express_awaiting_receiver_queue"
 
 
 -- Runs the correct net Send function based on the realm --
@@ -155,6 +156,40 @@ end
 function express:_getPreDlReceiver( message )
     message = string.lower( message )
     return self._preDlReceivers[message]
+end
+
+
+-- Queues a message to be handled if/when a receiver is added for it --
+function express._waitForReceiver( ply, message, id, needsProof )
+    table.insert( express._awaitingReceiver, {
+        ply = ply,
+        id = id,
+        message = message,
+        queuedAt = CurTime(),
+        needsProof = needsProof
+    } )
+end
+
+
+-- When a new receiver is added, loop through the queue to handle relevant waiting items --
+-- This function also clears out old items from the queue --
+function express._runMessagesAwaitingReceiver( message )
+    local staleTime = CurTime() - 5
+    local queue = express._awaitingReceiver
+
+    for i = #queue, 1, -1 do
+        local waiting = queue[i]
+
+        if waiting.message == message then
+            express.HandleMessage( waiting.ply, waiting.message, waiting.id, waiting.needsProof )
+            table.remove( queue, i )
+        else
+            if waiting.queuedAt <= staleTime then
+                ErrorNoHalt( "Express: Timed out waiting for receiver for message '" .. message.message )
+                table.remove( queue, i )
+            end
+        end
+    end
 end
 
 

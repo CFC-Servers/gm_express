@@ -29,6 +29,7 @@ express.domain_cl = CreateConVar(
 function express.Receive( message, cb )
     message = string.lower( message )
     express._receivers[message] = cb
+    express._runMessagesAwaitingReceiver( message )
 end
 
 
@@ -140,16 +141,7 @@ function express:CallPreDownload( message, ply, id, size, needsProof )
 end
 
 
--- Handles a net message containing an ID to download from the API --
-function express.OnMessage( _, ply )
-    local message = net.ReadString()
-    if not express:_getReceiver( message ) then
-        error( "Express: Received a message that has no listener! (" .. message .. ")" )
-    end
-
-    local id = net.ReadString()
-    local needsProof = net.ReadBool()
-
+function express.HandleMessage( ply, message, id, needsProof )
     local function makeRequest( size )
         if size then
             local check = express:CallPreDownload( message, ply, id, size, needsProof )
@@ -171,6 +163,22 @@ function express.OnMessage( _, ply )
     end
 
     makeRequest()
+end
+
+
+-- Handles a net message containing an ID to download from the API --
+function express.OnMessage( _, ply )
+    local message = net.ReadString()
+    local id = net.ReadString()
+    local needsProof = net.ReadBool()
+
+    local handler = express.HandleMessage
+
+    if not express:_getReceiver( message ) then
+        handler = express._waitForReceiver
+    end
+
+    handler( ply, message, id, needsProof )
 end
 
 
