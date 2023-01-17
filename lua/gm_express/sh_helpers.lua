@@ -3,7 +3,7 @@ express.version = 1
 express.revision = 1
 express._putCache = {}
 express._waitingForAccess = {}
-express._awaitingAccessTimer = "express_awaiting_receiver_queue"
+express._awaitingReceiverTimer = "express_awaiting_receiver_queue"
 
 
 -- Runs the correct net Send function based on the realm --
@@ -159,6 +159,26 @@ function express:_getPreDlReceiver( message )
 end
 
 
+-- Removes messages waiting for a receiver that have been waiting for too long --
+function express._expireAwaitingReceiverQueue()
+    local queue = express._awaitingAccess
+    if #queue == 0 then
+        timer.Remove( express._awaitingReceiverTimer )
+        return
+    end
+
+    local staleTime = CurTime() - 5
+
+    for i = #queue, 1, -1 do
+        local waiting = queue[i]
+        if waiting.queuedAt <= staleTime then
+            ErrorNoHalt( "Express: Timed out waiting for receiver for message: " .. waiting.message )
+            table.remove( queue, i )
+        end
+    end
+end
+
+
 -- Queues a message to be handled if/when a receiver is added for it --
 function express._waitForReceiver( ply, message, id, needsProof )
     table.insert( express._awaitingReceiver, {
@@ -168,13 +188,15 @@ function express._waitForReceiver( ply, message, id, needsProof )
         queuedAt = CurTime(),
         needsProof = needsProof
     } )
+
+    local timerName = express._awaitingReceiverTimer
+    if timer.Exists( timerName ) then return end
+    timer.Create( timerName, 1, 0, express._expireAwaitingReceiverQueue )
 end
 
 
 -- When a new receiver is added, loop through the queue to handle relevant waiting items --
--- This function also clears out old items from the queue --
 function express._runMessagesAwaitingReceiver( message )
-    local staleTime = CurTime() - 5
     local queue = express._awaitingReceiver
 
     for i = #queue, 1, -1 do
@@ -183,11 +205,6 @@ function express._runMessagesAwaitingReceiver( message )
         if waiting.message == message then
             express.HandleMessage( waiting.ply, waiting.message, waiting.id, waiting.needsProof )
             table.remove( queue, i )
-        else
-            if waiting.queuedAt <= staleTime then
-                ErrorNoHalt( "Express: Timed out waiting for receiver for message '" .. message.message )
-                table.remove( queue, i )
-            end
         end
     end
 end
