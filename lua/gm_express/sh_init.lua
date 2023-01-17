@@ -71,6 +71,10 @@ function express:GetSize( id, cb )
         assert( sizeHolder, "Invalid JSON" )
 
         local size = sizeHolder.size
+        if not size then
+            print( "Express: Failed to get size for ID '" .. id .. "'.", code )
+            print( body )
+        end
         assert( size, "No size data" )
 
         cb( tonumber( size ) )
