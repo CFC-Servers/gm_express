@@ -55,8 +55,8 @@ function express:SetExpected( hash, cb, plys )
 end
 
 
--- Runs a hook when a player has loaded Express --
 -- Send the player their access token as soon as it's safe to do so --
+-- Also Runs a notification hook that a player is fully ready to receive Express messages --
 function express.OnPlayerLoaded( ply )
     net.Start( "express_access" )
     net.WriteString( express._clientAccess )
