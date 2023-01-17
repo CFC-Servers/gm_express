@@ -304,7 +304,7 @@ end
 #### <ins>**Description**</ins>
 This hook runs when all Express code has loaded. All `express` methods are available. Runs exactly once on both realms.
 
-This is a good time to make your Receivers _(`express.Receive`).
+This is a good time to make your Receivers _(`express.Receive`)_.
 
 #### <ins>**Example**</ins>
 Creates the Express Receivers when Express is available
@@ -325,7 +325,7 @@ end )
 <summary><h4> <strong><img src="https://user-images.githubusercontent.com/7936439/200705110-55b19d08-b342-4e94-a7c3-6b45baf98c2b.png" width="15"> <code>ExpressPlayerReceiver( player ply, string message )</code></strong> </h4></summary>
 
 #### <ins>**Description**</ins>
-Called when `ply` creates a new receiver for `message` _(and, by extension, is ready for both net and express messages)_
+Called when `ply` creates a new receiver for `message` _(and, by extension, is ready for both `net` and `express` messages)_
 
 Once this hook is called, it is guaranteed to be safe to `express.Send` to the player.
 
