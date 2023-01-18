@@ -199,4 +199,6 @@ else
     include( "cl_init.lua" )
 end
 
-hook.Run( "ExpressLoaded" )
+hook.Add( "CreateTeams", "ExpressLoaded", function()
+    hook.Run( "ExpressLoaded" )
+end  )
