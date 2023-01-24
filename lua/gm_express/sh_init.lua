@@ -38,8 +38,8 @@ function express:Get( id, cb, _attempts )
 
     local success = function( code, body )
         if code == 404 then
-            assert( _attempts <= 25, "express:Get() failed to retrieve data after 20 attempts: " .. id )
-            timer.Simple( 0.1 * _attempts, function()
+            assert( _attempts <= 25, "express:Get() failed to retrieve data after 25 attempts: " .. id )
+            timer.Simple( 0.125 * _attempts, function()
                 self:Get( id, cb, _attempts + 1 )
             end )
             return
@@ -50,8 +50,6 @@ function express:Get( id, cb, _attempts )
             print( "express:Get() succeeded after " .. _attempts .. " attempts: " .. id )
         end
 
-        local hash = util.SHA1( body )
-
         if string.StartWith( body, "<enc>" ) then
             body = util.Decompress( string.sub( body, 6 ) )
             if ( not body ) or #body == 0 then
@@ -59,6 +57,7 @@ function express:Get( id, cb, _attempts )
             end
         end
 
+        local hash = util.SHA1( body )
         local decodedData = pon.decode( body )
         cb( decodedData, hash )
     end
