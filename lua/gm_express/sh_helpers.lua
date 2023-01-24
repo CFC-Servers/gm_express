@@ -127,10 +127,15 @@ function express:_put( data, cb )
         error( "Express: Tried to send empty data!" )
     end
 
-    data = util.Compress( pon.encode( data ) )
+    data = pon.encode( data )
 
     if #data > self._maxDataSize then
-        error( "Express: Data too large (" .. #data .. " bytes)" )
+        data = "<enc>" .. util.Compress( data )
+        assert( data, "Express: Failed to compress data!" )
+
+        if #data > self._maxDataSize then
+            error( "Express: Data too large (" .. #data .. " bytes)" )
+        end
     end
 
     local hash = util.SHA1( data )
