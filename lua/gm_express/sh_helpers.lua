@@ -129,12 +129,13 @@ function express:_put( data, cb )
 
     data = pon.encode( data )
 
-    if #data > self._maxDataSize then
+    if string.len( data ) > self._maxDataSize then
         data = "<enc>" .. util.Compress( data )
         assert( data, "Express: Failed to compress data!" )
 
-        if #data > self._maxDataSize then
-            error( "Express: Data too large (" .. #data .. " bytes)" )
+        local dataLen = string.len( data )
+        if dataLen > self._maxDataSize then
+            error( "Express: Data too large (" .. dataLen .. " bytes)" )
         end
     end
 
