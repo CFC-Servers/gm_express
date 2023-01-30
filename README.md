@@ -296,7 +296,7 @@ end
 </details>
 
 <details>
-<summary><h3>:hook: Hooks</h3></summary>
+<summary><h3>:fishing_pole_and_fish: Hooks</h3></summary>
 
 <details>
 <summary><h4> <strong><img src="https://user-images.githubusercontent.com/7936439/200705159-4c51d043-82a3-4d15-a335-291bb26a5528.png" width="15"> <code>GM:ExpressLoaded()</code></strong> </h4></summary>
