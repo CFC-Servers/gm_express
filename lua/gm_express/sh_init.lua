@@ -39,14 +39,16 @@ function express:Get( id, cb )
         express._checkResponseCode( code )
 
         local hash = util.SHA1( body )
-        local encodedData = util.Decompress( body, self._maxDataSize )
 
-        if #encodedData == 0 then
-            error( "Express: Failed to decompress data for ID '" .. id .. "'." )
-        else
-            local decodedData = pon.decode( encodedData )
-            cb( decodedData, hash )
+        if string.StartWith( body, "<enc>" ) then
+            body = util.Decompress( string.sub( body, 6 ) )
+            if ( not body ) or #body == 0 then
+                error( "Express: Failed to decompress data for ID '" .. id .. "'." )
+            end
         end
+
+        local decodedData = pon.decode( body )
+        cb( decodedData, hash )
     end
 
     HTTP( {
