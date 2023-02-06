@@ -13,6 +13,10 @@ express.domain_cl = CreateConVar(
     "express_domain_cl", "", FCVAR_ARCHIVE + FCVAR_REPLICATED, "The client-specific domain of the Express server. If empty, express_domain will be used."
 )
 
+express.sendDelay = CreateConVar(
+    "express_send_delay", 0.15, FCVAR_ARCHIVE + FCVAR_REPLICATED, "How long to wait (in seconds) before sending the Express Message ID to the recipient (longer delays will result in increased reliability)"
+)
+
 
 -- Runs the correct net Send function based on the realm --
 function express.shSend( target )
@@ -168,17 +172,23 @@ end
 
 -- Forwards the given parameters to the putter function, then alerts the recipient --
 function express:_send( message, data, plys, onProof )
-    self:_put( data, function( id, hash )
-        net.Start( "express" )
-        net.WriteString( message )
-        net.WriteString( id )
-        net.WriteBool( onProof ~= nil )
+    -- Cloudflare isn't fulfilling their promise that the first lookup in
+    -- each region will "search" for the target key in K/V if it has't been cached yet.
+    -- This delay makes it more likely that the data will have "settled" into K/V before the first lookup
+    -- (Once it's cached as a 404, it'll stay that way for about 60 seconds)
+    timer.Simple( sendDelay:GetFloat(), function()
+        self:_put( data, function( id, hash )
+            net.Start( "express" )
+            net.WriteString( message )
+            net.WriteString( id )
+            net.WriteBool( onProof ~= nil )
 
-        if onProof then
-            self:SetExpected( hash, onProof, plys )
-        end
+            if onProof then
+                self:SetExpected( hash, onProof, plys )
+            end
 
-        express.shSend( plys )
+            express.shSend( plys )
+        end )
     end )
 end
 
