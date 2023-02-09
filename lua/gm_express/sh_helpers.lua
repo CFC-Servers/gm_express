@@ -170,26 +170,33 @@ function express:_put( data, cb )
 end
 
 
--- Forwards the given parameters to the putter function, then alerts the recipient --
-function express:_send( message, data, plys, onProof )
-    -- Cloudflare isn't fulfilling their promise that the first lookup in
-    -- each region will "search" for the target key in K/V if it has't been cached yet.
-    -- This delay makes it more likely that the data will have "settled" into K/V before the first lookup
-    -- (Once it's cached as a 404, it'll stay that way for about 60 seconds)
-    timer.Simple( sendDelay:GetFloat(), function()
-        self:_put( data, function( id, hash )
+-- TODO: Fix GLuaTest so we can actually test this function...
+-- Creates a contextual callback for the :_put endpoint, delaying the notification to the recipient(s) --
+function express:_putCallback( message, plys, onProof )
+    return function( id, hash )
+        if onProof then
+            self:SetExpected( hash, onProof, plys )
+        end
+
+        -- Cloudflare isn't fulfilling their promise that the first lookup in
+        -- each region will "search" for the target key in K/V if it has't been cached yet.
+        -- This delay makes it more likely that the data will have "settled" into K/V before the first lookup
+        -- (Once it's cached as a 404, it'll stay that way for about 60 seconds)
+        timer.Simple( self.sendDelay:GetFloat(), function()
             net.Start( "express" )
             net.WriteString( message )
             net.WriteString( id )
             net.WriteBool( onProof ~= nil )
 
-            if onProof then
-                self:SetExpected( hash, onProof, plys )
-            end
-
             express.shSend( plys )
         end )
-    end )
+    end
+end
+
+
+-- Calls the _put function with a contextual callback --
+function express:_send( message, data, plys, onProof )
+    self:_put( data, self:_putCallback( message, plys, onProof ) )
 end
 
 
