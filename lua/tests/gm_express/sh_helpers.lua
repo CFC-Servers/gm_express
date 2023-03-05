@@ -499,7 +499,10 @@ return {
                 local mockCallback = stub()
                 local putStub = stub( express, "Put" )
 
-                express._putCache[mockHash] = mockId
+                express._putCache[mockHash] = {
+                    id = mockId,
+                    cachedAt = os.time()
+                }
 
                 stub( pon, "encode" ).returns( "encoded-data" )
                 stub( util, "Compress" ).returns( mockData )
@@ -543,7 +546,10 @@ return {
 
                 expect( putStub ).was.called()
                 expect( mockCallback ).was.called()
-                expect( express._putCache[mockHash] ).to.equal( mockId )
+
+                local actualCached = express._putCache[mockHash]
+                expect( actualCached ).to.exist()
+                expect( actualCached.id ).to.equal( mockId )
             end,
 
             cleanup = function( state )

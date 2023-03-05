@@ -2,6 +2,7 @@ AddCSLuaFile()
 express.version = 1
 express.revision = 1
 express._putCache = {}
+express._maxCacheTime = ( 24 - 1 ) * 60 * 60 -- TODO: Get this from the server, similar to the version check
 express._waitingForAccess = {}
 express.domain = CreateConVar(
     "express_domain", "gmod.express", FCVAR_ARCHIVE + FCVAR_REPLICATED, "The domain of the Express server"
@@ -125,7 +126,7 @@ function express:_getSize( id, cb )
 end
 
 
--- Encodes and compresses the given data, then sends it to the API if not already cached --
+---Encodes and compresses the given data, then sends it to the API if not already cached
 function express:_put( data, cb )
     if table.Count( data ) == 0 then
         error( "Express: Tried to send empty data!" )
@@ -145,18 +146,22 @@ function express:_put( data, cb )
 
     local hash = util.SHA1( data )
 
-    local cachedId = self._putCache[hash]
-    if cachedId then
-        -- Force the callback to run asynchronously for consistency
-        timer.Simple( 0, function()
-            cb( cachedId, hash )
-        end )
+    local cached = self._putCache[hash]
+    if cached then
+        local cachedAt = cached.added
 
-        return
+        if os.time() <= ( cachedAt + self._maxCacheTime ) then
+            -- Force the callback to run asynchronously for consistency
+            timer.Simple( 0, function()
+                cb( cached.id, hash )
+            end )
+
+            return
+        end
     end
 
     local function wrapCb( id )
-        self._putCache[hash] = id
+        self._putCache[hash] = { id = id, added = os.time() }
         cb( id, hash )
     end
 
