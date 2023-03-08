@@ -148,7 +148,7 @@ function express:_put( data, cb )
 
     local cached = self._putCache[hash]
     if cached then
-        local cachedAt = cached.added
+        local cachedAt = cached.cachedAt
 
         if os.time() <= ( cachedAt + self._maxCacheTime ) then
             -- Force the callback to run asynchronously for consistency
@@ -161,7 +161,7 @@ function express:_put( data, cb )
     end
 
     local function wrapCb( id )
-        self._putCache[hash] = { id = id, added = os.time() }
+        self._putCache[hash] = { id = id, cachedAt = os.time() }
         cb( id, hash )
     end
 
