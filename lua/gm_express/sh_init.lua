@@ -32,13 +32,23 @@ end
 
 
 -- Retrieves and parses the data for given ID --
-function express:Get( id, cb )
+function express:Get( id, cb, _attempts )
+    _attempts = _attempts or 0
     local url = self:makeAccessURL( "read", id )
 
     local success = function( code, body )
-        express._checkResponseCode( code )
+        if code == 404 then
+            assert( _attempts <= 25, "express:Get() failed to retrieve data after 25 attempts: " .. id )
+            timer.Simple( 0.125 * _attempts, function()
+                self:Get( id, cb, _attempts + 1 )
+            end )
+            return
+        end
 
-        local hash = util.SHA1( body )
+        express._checkResponseCode( code )
+        if _attempts > 0 then
+            print( "express:Get() succeeded after " .. _attempts .. " attempts: " .. id )
+        end
 
         if string.StartWith( body, "<enc>" ) then
             body = util.Decompress( string.sub( body, 6 ) )
@@ -47,6 +57,7 @@ function express:Get( id, cb )
             end
         end
 
+        local hash = util.SHA1( body )
         local decodedData = pon.decode( body )
         cb( decodedData, hash )
     end

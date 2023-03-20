@@ -499,7 +499,10 @@ return {
                 local mockCallback = stub()
                 local putStub = stub( express, "Put" )
 
-                express._putCache[mockHash] = mockId
+                express._putCache[mockHash] = {
+                    id = mockId,
+                    cachedAt = os.time()
+                }
 
                 stub( pon, "encode" ).returns( "encoded-data" )
                 stub( util, "Compress" ).returns( mockData )
@@ -543,7 +546,10 @@ return {
 
                 expect( putStub ).was.called()
                 expect( mockCallback ).was.called()
-                expect( express._putCache[mockHash] ).to.equal( mockId )
+
+                local actualCached = express._putCache[mockHash]
+                expect( actualCached ).to.exist()
+                expect( actualCached.id ).to.equal( mockId )
             end,
 
             cleanup = function( state )
@@ -592,34 +598,11 @@ return {
 
         -- express:_send
         {
-            name = "express._send calls _put with a callback that nets message info and does not set expected if no onProof was provided",
+            name = "express._send calls _putCallback",
             func = function()
-                stub( net, "Start" )
-                stub( net, "WriteString" )
-                stub( net, "WriteBool" )
+                local putCallback = stub()
+                stub( express, "_putCallback" ).returns( putCallback )
 
-                local setExpected = stub( express, "SetExpected" )
-                local shSend = stub( express, "shSend" )
-                local putStub = stub( express, "_put" ).with( function( _, _, cb )
-                    cb( "test-id", "test-hash" )
-                end )
-
-                express:_send( "test-message", "test-data", {} )
-
-                expect( putStub ).was.called()
-                expect( setExpected ).wasNot.called()
-                expect( shSend ).was.called()
-            end
-        },
-        {
-            name = "express._send calls _put with a callback that nets message info and sets expected if onProof was provided",
-            func = function()
-                stub( net, "Start" )
-                stub( net, "WriteString" )
-                stub( net, "WriteBool" )
-
-                local setExpected = stub( express, "SetExpected" )
-                local shSend = stub( express, "shSend" )
                 local putStub = stub( express, "_put" ).with( function( _, _, cb )
                     cb( "test-id", "test-hash" )
                 end )
@@ -627,8 +610,7 @@ return {
                 express:_send( "test-message", "test-data", {}, stub() )
 
                 expect( putStub ).was.called()
-                expect( setExpected ).was.called()
-                expect( shSend ).was.called()
+                expect( putCallback ).was.called()
             end
         },
 

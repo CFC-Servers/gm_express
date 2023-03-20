@@ -2,6 +2,7 @@ AddCSLuaFile()
 express.version = 1
 express.revision = 1
 express._putCache = {}
+express._maxCacheTime = ( 24 - 1 ) * 60 * 60 -- TODO: Get this from the server, similar to the version check
 express._waitingForAccess = {}
 express.domain = CreateConVar(
     "express_domain", "gmod.express", FCVAR_ARCHIVE + FCVAR_REPLICATED, "The domain of the Express server"
@@ -11,6 +12,10 @@ express.domain = CreateConVar(
 -- and direct clients to a global IP/domain to hit the same service
 express.domain_cl = CreateConVar(
     "express_domain_cl", "", FCVAR_ARCHIVE + FCVAR_REPLICATED, "The client-specific domain of the Express server. If empty, express_domain will be used."
+)
+
+express.sendDelay = CreateConVar(
+    "express_send_delay", 0.15, FCVAR_ARCHIVE + FCVAR_REPLICATED, "How long to wait (in seconds) before sending the Express Message ID to the recipient (longer delays will result in increased reliability)"
 )
 
 
@@ -121,7 +126,7 @@ function express:_getSize( id, cb )
 end
 
 
--- Encodes and compresses the given data, then sends it to the API if not already cached --
+---Encodes and compresses the given data, then sends it to the API if not already cached
 function express:_put( data, cb )
     if table.Count( data ) == 0 then
         error( "Express: Tried to send empty data!" )
@@ -141,18 +146,22 @@ function express:_put( data, cb )
 
     local hash = util.SHA1( data )
 
-    local cachedId = self._putCache[hash]
-    if cachedId then
-        -- Force the callback to run asynchronously for consistency
-        timer.Simple( 0, function()
-            cb( cachedId, hash )
-        end )
+    local cached = self._putCache[hash]
+    if cached then
+        local cachedAt = cached.cachedAt
 
-        return
+        if os.time() <= ( cachedAt + self._maxCacheTime ) then
+            -- Force the callback to run asynchronously for consistency
+            timer.Simple( 0, function()
+                cb( cached.id, hash )
+            end )
+
+            return
+        end
     end
 
     local function wrapCb( id )
-        self._putCache[hash] = id
+        self._putCache[hash] = { id = id, cachedAt = os.time() }
         cb( id, hash )
     end
 
@@ -166,20 +175,33 @@ function express:_put( data, cb )
 end
 
 
--- Forwards the given parameters to the putter function, then alerts the recipient --
-function express:_send( message, data, plys, onProof )
-    self:_put( data, function( id, hash )
-        net.Start( "express" )
-        net.WriteString( message )
-        net.WriteString( id )
-        net.WriteBool( onProof ~= nil )
-
+-- TODO: Fix GLuaTest so we can actually test this function...
+-- Creates a contextual callback for the :_put endpoint, delaying the notification to the recipient(s) --
+function express:_putCallback( message, plys, onProof )
+    return function( id, hash )
         if onProof then
             self:SetExpected( hash, onProof, plys )
         end
 
-        express.shSend( plys )
-    end )
+        -- Cloudflare isn't fulfilling their promise that the first lookup in
+        -- each region will "search" for the target key in K/V if it has't been cached yet.
+        -- This delay makes it more likely that the data will have "settled" into K/V before the first lookup
+        -- (Once it's cached as a 404, it'll stay that way for about 60 seconds)
+        timer.Simple( self.sendDelay:GetFloat(), function()
+            net.Start( "express" )
+            net.WriteString( message )
+            net.WriteString( id )
+            net.WriteBool( onProof ~= nil )
+
+            express.shSend( plys )
+        end )
+    end
+end
+
+
+-- Calls the _put function with a contextual callback --
+function express:_send( message, data, plys, onProof )
+    self:_put( data, self:_putCallback( message, plys, onProof ) )
 end
 
 
