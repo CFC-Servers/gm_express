@@ -38,7 +38,7 @@ function express:Get( id, cb, _attempts )
 
     local success = function( code, body )
         if code == 404 then
-            assert( _attempts <= 25, "express:Get() failed to retrieve data after 25 attempts: " .. id )
+            assert( _attempts <= 35, "express:Get() failed to retrieve data after 35 attempts: " .. id )
             timer.Simple( 0.125 * _attempts, function()
                 self:Get( id, cb, _attempts + 1 )
             end )
