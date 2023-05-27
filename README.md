@@ -454,7 +454,8 @@ For each test, we collected two key metrics:
 <summary><b>Detailed Test Results</b></summary>
 <details>
 <summary><b>Test 1</b> <code>(74.75 KB)</code>:</summary>
-<b>Summary:</b>This data can fit in only two net messages. In this situation, Express loses out to just sending net messages (by almost a full second).
+
+<b>Summary: </b>This data can fit in only two net messages. In this situation, Express loses out to just sending net messages (by almost a full second).
 
 | Data Size | Compressed Size |
 | -------------- | -------------------- |
@@ -470,7 +471,8 @@ For each test, we collected two key metrics:
 
 <details>
 <summary><b>Test 2</b> <code>(374.78 KB)</code>:</summary>
-<b>Summary:</b>Requiring at least six net messages when sent normally, Express sends the data about 3x faster.
+
+<b>Summary: </b>Requiring at least six net messages when sent normally, Express sends the data about 3x faster.
 
 | Data Size | Compressed Size |
 | -------------- | -------------------- |
@@ -486,7 +488,8 @@ For each test, we collected two key metrics:
 
 <details>
 <summary><b>Test 3</b> <code>(1.5 MB)</code>:</summary>
-<b>Summary:</b>After passing the "1 megabyte" mark, Express' advantages bein really shining through, beating the next fastest option by 21 seconds (8x faster!)
+
+<b>Summary: </b>After passing the "1 megabyte" mark, Express' advantages bein really shining through, beating the next fastest option by 21 seconds (8x faster!)
 
 | Data Size | Compressed Size |
 | -------------- | -------------------- |
@@ -502,7 +505,8 @@ For each test, we collected two key metrics:
 
 <details>
 <summary><b>Test 4</b> <code>(11.22 MB)</code>:</summary>
-<b>Summary:</b>With a much larger payload, it becomes abundantly clear how slow and prohibitive the built-in net library can be. Express sends this 11mb payload in under 20 seconds, while the neet library is nearing **200 seconds**.
+
+<b>Summary: </b>With a much larger payload, it becomes abundantly clear how slow and prohibitive the built-in net library can be. Express sends this 11mb payload in under 20 seconds, while the net library is nearing **200 seconds**.
 
 | Data Size | Compressed Size |
 | -------------- | -------------------- |
@@ -518,7 +522,7 @@ For each test, we collected two key metrics:
 
 <details>
 <summary><b>Test 5</b> <code>(11.96 KB)</code>:</summary>
-<b>Summary:</b>Because this payload only requires a single net mesage, Express falls way behind of the pack in terms of transfer speed.
+<b>Summary: </b>Because this payload only requires a single net mesage, Express falls way behind of the pack in terms of transfer speed.
 
 | Data Size | Compressed Size |
 | -------------- | -------------------- |
@@ -543,7 +547,7 @@ For each test, we collected two key metrics:
 #### Extra Notes
 - These results will depend heavily on networking conditions. For some people, lots of smaller messages may actually perform better than one large Express download.
 - Anything that uses the built-in net library _(like NetStream)_ will be more reliable than a library like Express, even if they may be slower overall.
-- Express caches sends. This means that if you needed to send a dataset to more than one player, Express would only need to upload the data once, saving a significant amount of time and bandwidth.
+- Express caches sends. This means that if you needed to send a dataset to more than one player, Express would only need to upload the data once, saving a significant amount of time and bandwidth. These savings aren't reflected in this test run.
 
 These tests illustrate how Express can significantly improve data transfer speed and efficiency for large or even intermediate-scale data, but may underperform when handling smaller data sizes.
 
