@@ -423,7 +423,121 @@ end )
 
 ## Performance
 
-When the project is more mature, I'll take on the task of comparing performance in a variety of scenarios with something like Netstream and/or manual chunking.
+We tested Express' performance against two other options:
+ - **Manual Chunking**:
+   - This is a bare-minimum example script that serializes, compresses, and splits the data up across as few net messages as possible. _(This is typically what people do in smaller addons.)_
+   - _[Source](https://gist.github.com/brandonsturgeon/2e73b6e4595dd4476d87494ba4cb73b0#file-sender_chunking-lua)_
+ - **NetStream**:
+   - This library is very popular. It's the go-to choice for sending large chunks of data. It's currently used by Starfall, PAC3, AdvDupe2, etc.
+   - _[Source](https://gist.github.com/brandonsturgeon/2e73b6e4595dd4476d87494ba4cb73b0#file-netstream-lua)_
+
+#### Our Testing Approach
+
+Our findings are based on a series of tests where we generated data sets filled with random elements across a range of data types. We sent this data using each of the three options, one at a time.
+
+These test were performed on a moderately-specced laptop. The server was a dedicated base-branch server run in WSL2. The client was base-branch clean-install run on Windows.
+
+For each test, we collected four key data points:
+- **Duration**: The total time _(in seconds)_ it took to complete each test. This includes compression, serialization, sending, and acknowledgement.
+- **Message Count**: The number of net messages sent during the transfer. Fewer is usually better.
+- **Data Size**: The size of the data, serialized as JSON.
+- **Compressed Size**: The sie of the data, compresed using `util.Compress`.
+
+#### Test Details
+<details>
+<summary><b>Detailed Test Results</b></summary>
+
+References:
+ - [This](https://gist.github.com/brandonsturgeon/15d195b2a5f8480c6579cc89816d2ac3) is an example of the data sets that we use during the test runs.
+ - You can view the raw test setup [here](https://gist.github.com/brandonsturgeon/2e73b6e4595dd4476d87494ba4cb73b0).
+
+**Here are the results of each test run**:
+
+<details>
+<summary><b>Test 1</b> <code>(74.75 KB)</code>:</summary>
+
+| Data Size | Compressed Size |
+| -------------- | -------------------- |
+| 194.97 KB | 74.75 KB |
+
+| Method | Duration (s) | Messages Sent |
+| ------ | ------------ | ------------- |
+| Manual Chunking | 1.265 | 2 |
+| NetStream | 2.273 | 11 |
+| Express | 1.909 | 1 |
+
+</details>
+
+<details>
+<summary><b>Test 2</b> <code>(374.78 KB)</code>:</summary>
+
+| Data Size | Compressed Size |
+| -------------- | -------------------- |
+| 988.2 KB | 374.78 KB |
+
+| Method | Duration (s) | Messages Sent |
+| ------ | ------------ | ------------- |
+| Manual Chunking | 6.160 | 6 |
+| NetStream | 10.303 | 51 |
+| Express | 2.151 | 1 |
+
+</details>
+
+<details>
+<summary><b>Test 3</b> <code>(1.5 MB)</code>:</summary>
+
+| Data Size | Compressed Size |
+| -------------- | -------------------- |
+| 3.97 MB | 1.5 MB |
+
+| Method | Duration (s) | Messages Sent |
+| ------ | ------------ | ------------- |
+| Manual Chunking | 24.325 | 24 |
+| NetStream | 40.849 | 200 |
+| Express | 2.897 | 1 |
+
+</details>
+
+<details>
+<summary><b>Test 4</b> <code>(11.22 MB)</code>:</summary>
+
+| Data Size | Compressed Size |
+| -------------- | -------------------- |
+| 29.67 MB | 11.22 MB |
+
+| Method | Duration (s) | Messages Sent |
+| ------ | ------------ | ------------- |
+| Manual Chunking | 181.491 | 180 |
+| NetStream | 304.552 | 1,485 |
+| Express | 18.993 | 1 |
+
+</details>
+
+<details>
+<summary><b>Test 5</b> <code>(11.96 KB)</code>:</summary>
+
+| Data Size | Compressed Size |
+| -------------- | -------------------- |
+| 29.79 KB | 11.96 KB |
+
+| Method | Duration (s) | Messages Sent |
+| ------ | ------------ | ------------- |
+| Manual Chunking | 0.306 | 1 |
+| NetStream | 0.833 | 3 |
+| Express | 1.333 | 1 |
+
+</details>
+</details>
+
+#### Test Result Takeaways
+
+- Express sends data significantly faster than both Manual Chunking and NetStream when the data size exceeds a certain threshold.
+- Express only sends up to 2 net messages per transfer, no matter the size of the data.
+- Despite its impressive performance with large data sizes, Express is less efficient than other methods for smaller data sizes.
+
+These tests illustrate how Express can significantly enhance data transfer speed and efficiency for large or even intermediate-scale data, but may underperform when handling smaller data sizes.
+
+Understanding the trade-offs of Express can help you determine if it's the right fit for your project.
 
 ## Case Studies
 
