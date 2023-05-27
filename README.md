@@ -431,7 +431,9 @@ We tested Express' performance against two other options:
    - This library is very popular. It's the go-to choice for sending large chunks of data. It's currently used by Starfall, PAC3, AdvDupe2, etc.
    - _[Source](https://gist.github.com/brandonsturgeon/2e73b6e4595dd4476d87494ba4cb73b0#file-netstream-lua)_
 
-#### Our Testing Approach
+#### Test Details
+<details>
+<summary><b>Test Setup</b></summary>
 
 Our findings are based on a series of tests where we generated data sets filled with random elements across a range of data types. We sent this data using each of the three options, one at a time.
 
@@ -440,8 +442,8 @@ These test were performed on a moderately-specced laptop. The server was a dedic
 For each test, we collected two key metrics:
 - **Duration**: The total time _(in seconds)_ it took to complete each test. This includes compression, serialization, sending, and acknowledgement.
 - **Message Count**: The number of net messages sent during the transfer. Fewer is usually better.
+</details>
 
-#### Test Details
 <details>
 <summary><b>Detailed Test Results</b></summary>
 
