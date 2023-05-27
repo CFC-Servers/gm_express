@@ -5,13 +5,68 @@ Seriously, it's really easy! Take a look:
 ```lua
 -- Server
 local data = file.Read( "huge_data_file.json" )
-express.Broadcast( "stored_data", { data = data } )
+express.Broadcast( "stored_data", { data } )
 
 -- Client
 express.Receive( "stored_data", function( data )
-    file.Write( "stored_data.json", data.data )
+    file.Write( "stored_data.json", data[1] )
 end )
 ```
+<details>
+<summary><i>Compared to doing it yourself...</i></summary>
+
+```lua
+-- Server
+-- This is just an example!
+-- It doesn't handle errors or clients joining, and it doesn't support multiple streams
+
+util.AddNetworkString( "myaddon_datachunks" )
+local buffer = ""
+
+local function broadcastChunk()
+    if #buffer == 0 then return end
+
+    local chunkSize, isLast = math.min( 63000, #buffer ), false
+    buffer = string.sub( buffer, chunkSize + 1 )
+
+    if #pending <= chunkSize then
+        buffer, isLast = "", true
+    end
+
+    net.Start( "myaddon_datachunks" )
+    net.WriteUInt( chunkSize, 16 )
+    net.WriteData( string.sub( pending, 1, chunkSize ), chunkSize )
+    net.WriteBool( isLast )
+    net.Broadcast()
+end
+
+function BroadcastFile( filePath )
+    local fileData = file.Read( filePath, "DATA" )
+    buffer = util.Compress( fileData )
+end
+
+local interval = engine.TickInterval() * 8
+timer.Create( "MyAddon_DataSender", interval, 0, broadcastChunk )
+
+BroadcastFile( "huge_data_file.json" )
+```
+
+```lua
+-- Client
+local buffer = ""
+net.Receive( "myaddon_datachunks", function()
+    buffer = buffer .. net.ReadData( net.ReadUInt( 16 ) )
+    if not net.ReadBool() then return end
+
+    local datas = util.Decompress( buffer )
+    processData( datas )
+end )
+```
+
+---
+
+</details>
+
 
 In this example, `huge_data_file.json` could be in excess of ~~100mb~~ _(soon)_ 25mb post-compression without Express even breaking a sweat.
 The client would receive the contents of the file as fast as their internet connection can carry it.
@@ -25,13 +80,13 @@ Instead of using Garry's Mod's throttled _(<1mb/s!)_ and already-polluted networ
 
 Doing it this way comes with a number of practical benefits:
  - :mailbox_with_mail: These messages don't run on the main thread, meaning it won't block networking/physics/lua
- - :muscle: A dramatic increase to maximum message size (~100mb, compared to the `net` library's 64kb limit)
+ - :muscle: A dramatic increase to maximum message size (~100mb, compared to the `net` library's <64kb limit)
  - :racing_car: Big improvements to speed in many circumstances
  - :call_me_hand: It's simple! You don't have to worry about serializing, compressing, and splitting your table up. Just send the table!
 
 Express works by storing the data you send on Cloudflare's Edge servers. Using Cloudflare workers, KV, and D1, Express can cheaply serve millions of requests and store hundreds of gigabytes per month. Cloudflare's Edge servers offer extremely low-latency requests and data access to every corner of the globe.
 
-By default, Express uses a free-forever public API provided by CFC Servers, but anyone can easily host their own!
+By default, Express uses [gmod.express](https://gmod.express), the public and free API provided by CFC Servers, but anyone can easily host their own!
 Check out the [Express Service](https://github.com/CFC-Servers/gm_express_service) README for more information.
 
 ## Usage
@@ -368,10 +423,133 @@ end )
 
 ## Performance
 
-When the project is more mature, I'll take on the task of comparing performance in a variety of scenarios with something like Netstream and/or manual chunking.
+We tested Express' performance against two other options:
+ - **Manual Chunking**:
+   - This is a bare-minimum example script that serializes, compresses, and splits the data up across as few net messages as possible. _(This is typically what people do in smaller addons.)_
+   - _[Source](https://gist.github.com/brandonsturgeon/2e73b6e4595dd4476d87494ba4cb73b0#file-sender_chunking-lua)_
+ - **NetStream**:
+   - This library is very popular. It's the go-to choice for sending large chunks of data. It's currently used by Starfall, PAC3, AdvDupe2, etc.
+   - _[Source](https://gist.github.com/brandonsturgeon/2e73b6e4595dd4476d87494ba4cb73b0#file-netstream-lua)_
+
+#### Test Details
+<details>
+<summary><b>Test Setup</b></summary>
+
+Our findings are based on a series of tests where we generated data sets filled with random elements across a range of data types. (`string`, `int`, `float`, `bool`, `Vector`, `Angle`, `Color`, `Entity`, `table`)
+
+We sent this data using each of the options, one at a time.
+
+These test were performed on a moderately-specced laptop. The server was a dedicated base-branch server run in WSL2. The client was base-branch clean-install run on Windows.
+
+For each test, we collected two key metrics:
+- **Duration**: The total time _(in seconds)_ it took to complete each test. This includes compression, serialization, sending, and acknowledgement.
+- **Message Count**: The number of net messages sent during the transfer. Fewer is usually better.
+
+**References**:
+ - [This](https://gist.github.com/brandonsturgeon/15d195b2a5f8480c6579cc89816d2ac3) is an example of the data sets that we use during the test runs.
+ - You can view the raw test setup [here](https://gist.github.com/brandonsturgeon/2e73b6e4595dd4476d87494ba4cb73b0).
+</details>
+
+<details>
+<summary><b>Detailed Test Results</b></summary>
+<details>
+<summary><b>Test 1</b> <code>(74.75 KB)</code>:</summary>
+<b>Summary:</b>This data can fit in only two net messages. In this situation, Express loses out to just sending net messages (by almost a full second).
+
+| Data Size | Compressed Size |
+| -------------- | -------------------- |
+| 194.97 KB | 74.75 KB |
+
+| Method | Duration (s) | Messages Sent |
+| ------ | ------------ | ------------- |
+| Manual Chunking | 1.265 | 2 |
+| NetStream | 2.273 | 11 |
+| Express | 1.909 | 1 |
+
+</details>
+
+<details>
+<summary><b>Test 2</b> <code>(374.78 KB)</code>:</summary>
+<b>Summary:</b>Requiring at least six net messages when sent normally, Express sends the data about 3x faster.
+
+| Data Size | Compressed Size |
+| -------------- | -------------------- |
+| 988.2 KB | 374.78 KB |
+
+| Method | Duration (s) | Messages Sent |
+| ------ | ------------ | ------------- |
+| Manual Chunking | 6.160 | 6 |
+| NetStream | 10.303 | 51 |
+| Express | 2.151 | 1 |
+
+</details>
+
+<details>
+<summary><b>Test 3</b> <code>(1.5 MB)</code>:</summary>
+<b>Summary:</b>After passing the "1 megabyte" mark, Express' advantages bein really shining through, beating the next fastest option by 21 seconds (8x faster!)
+
+| Data Size | Compressed Size |
+| -------------- | -------------------- |
+| 3.97 MB | 1.5 MB |
+
+| Method | Duration (s) | Messages Sent |
+| ------ | ------------ | ------------- |
+| Manual Chunking | 24.325 | 24 |
+| NetStream | 40.849 | 200 |
+| Express | 2.897 | 1 |
+
+</details>
+
+<details>
+<summary><b>Test 4</b> <code>(11.22 MB)</code>:</summary>
+<b>Summary:</b>With a much larger payload, it becomes abundantly clear how slow and prohibitive the built-in net library can be. Express sends this 11mb payload in under 20 seconds, while the neet library is nearing **200 seconds**.
+
+| Data Size | Compressed Size |
+| -------------- | -------------------- |
+| 29.67 MB | 11.22 MB |
+
+| Method | Duration (s) | Messages Sent |
+| ------ | ------------ | ------------- |
+| Manual Chunking | 181.491 | 180 |
+| NetStream | 304.552 | 1,485 |
+| Express | 18.993 | 1 |
+
+</details>
+
+<details>
+<summary><b>Test 5</b> <code>(11.96 KB)</code>:</summary>
+<b>Summary:</b>Because this payload only requires a single net mesage, Express falls way behind of the pack in terms of transfer speed.
+
+| Data Size | Compressed Size |
+| -------------- | -------------------- |
+| 29.79 KB | 11.96 KB |
+
+| Method | Duration (s) | Messages Sent |
+| ------ | ------------ | ------------- |
+| Manual Chunking | 0.306 | 1 |
+| NetStream | 0.833 | 3 |
+| Express | 1.333 | 1 |
+
+</details>
+</details>
+
+#### Test Result Takeaways
+
+- Express sends data significantly faster than both Manual Chunking and NetStream when the data size exceeds a certain threshold _(Roughly whenever 3 or more net messages would be required)_.
+- Express only sends up to 2 net messages per transfer, no matter the size of the data.
+- Despite its impressive performance with large data sizes, Express is less efficient than other methods for smaller data sizes.
+- _(NetStream is surprisingly slow, regardless of data size)_
+
+#### Extra Notes
+- These results will depend heavily on networking conditions. For some people, lots of smaller messages may actually perform better than one large Express download.
+- Anything that uses the built-in net library _(like NetStream)_ will be more reliable than a library like Express, even if they may be slower overall.
+- Express caches sends. This means that if you needed to send a dataset to more than one player, Express would only need to upload the data once, saving a significant amount of time and bandwidth.
+
+These tests illustrate how Express can significantly improve data transfer speed and efficiency for large or even intermediate-scale data, but may underperform when handling smaller data sizes.
+
+Understanding the trade-offs of Express can help you determine if it's a good fit for your project.
 
 ## Case Studies
-
 
 <details>
 <summary><h3>Intricate ACF-3 Tank dupe :gun:</h3></summary>
