@@ -5,13 +5,68 @@ Seriously, it's really easy! Take a look:
 ```lua
 -- Server
 local data = file.Read( "huge_data_file.json" )
-express.Broadcast( "stored_data", { data = data } )
+express.Broadcast( "stored_data", { data } )
 
 -- Client
 express.Receive( "stored_data", function( data )
-    file.Write( "stored_data.json", data.data )
+    file.Write( "stored_data.json", data[1] )
 end )
 ```
+<details>
+<summary><i>Compared to doing it yourself...</i></summary>
+
+```lua
+-- Server
+-- This is just an example!
+-- It doesn't handle errors or clients joining, and it doesn't support multiple streams
+
+util.AddNetworkString( "myaddon_datachunks" )
+local buffer = ""
+
+local function broadcastChunk()
+    if #buffer == 0 then return end
+
+    local chunkSize, isLast = math.min( 63000, #buffer ), false
+    buffer = string.sub( buffer, chunkSize + 1 )
+
+    if #pending <= chunkSize then
+        buffer, isLast = "", true
+    end
+
+    net.Start( "myaddon_datachunks" )
+    net.WriteUInt( chunkSize, 16 )
+    net.WriteData( string.sub( pending, 1, chunkSize ), chunkSize )
+    net.WriteBool( isLast )
+    net.Broadcast()
+end
+
+function BroadcastFile( filePath )
+    local fileData = file.Read( filePath, "DATA" )
+    buffer = util.Compress( fileData )
+end
+
+local interval = engine.TickInterval() * 8
+timer.Create( "MyAddon_DataSender", interval, 0, broadcastChunk )
+
+BroadcastFile( "huge_data_file.json" )
+```
+
+```lua
+-- Client
+local buffer = ""
+net.Receive( "myaddon_datachunks", function()
+    buffer = buffer .. net.ReadData( net.ReadUInt( 16 ) )
+    if not net.ReadBool() then return end
+
+    local datas = util.Decompress( buffer )
+    processData( datas )
+end )
+```
+
+---
+
+</details>
+
 
 In this example, `huge_data_file.json` could be in excess of ~~100mb~~ _(soon)_ 25mb post-compression without Express even breaking a sweat.
 The client would receive the contents of the file as fast as their internet connection can carry it.
@@ -25,13 +80,13 @@ Instead of using Garry's Mod's throttled _(<1mb/s!)_ and already-polluted networ
 
 Doing it this way comes with a number of practical benefits:
  - :mailbox_with_mail: These messages don't run on the main thread, meaning it won't block networking/physics/lua
- - :muscle: A dramatic increase to maximum message size (~100mb, compared to the `net` library's 64kb limit)
+ - :muscle: A dramatic increase to maximum message size (~100mb, compared to the `net` library's <64kb limit)
  - :racing_car: Big improvements to speed in many circumstances
  - :call_me_hand: It's simple! You don't have to worry about serializing, compressing, and splitting your table up. Just send the table!
 
 Express works by storing the data you send on Cloudflare's Edge servers. Using Cloudflare workers, KV, and D1, Express can cheaply serve millions of requests and store hundreds of gigabytes per month. Cloudflare's Edge servers offer extremely low-latency requests and data access to every corner of the globe.
 
-By default, Express uses a free-forever public API provided by CFC Servers, but anyone can easily host their own!
+By default, Express uses [gmod.express](https://gmod.express), the public and free API provided by CFC Servers, but anyone can easily host their own!
 Check out the [Express Service](https://github.com/CFC-Servers/gm_express_service) README for more information.
 
 ## Usage
