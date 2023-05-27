@@ -4,34 +4,43 @@ require( "pon" )
 if SERVER then
     util.AddNetworkString( "express" )
     util.AddNetworkString( "express_proof" )
+    util.AddNetworkString( "express_small" )
     util.AddNetworkString( "express_receivers_made" )
 end
 
+--- @class express
 express = {}
 express._receivers = {}
 express._protocol = "http"
 express._awaitingProof = {}
 express._preDlReceivers = {}
+express._minDataSize = 63 * 102
 express._maxDataSize = 24 * 1024 * 1024
 express._jsonHeaders = { ["Content-Type"] = "application/json" }
 express._bytesHeaders = { ["Accept"] = "application/octet-stream" }
 
 
--- Removes a receiver --
+--- Removes a receiver
+--- @param message string
 function express.ClearReceiver( message )
     message = string.lower( message )
     express._receivers[message] = nil
 end
 
 
--- Registers a PreDownload receiver --
+--- Registers a PreDownload receiver
+--- @param message string
+--- @param preDl function
 function express.ReceivePreDl( message, preDl )
     message = string.lower( message )
     express._preDlReceivers[message] = preDl
 end
 
 
--- Retrieves and parses the data for given ID --
+--- Retrieves and parses the data for given ID
+--- @param id string
+--- @param cb function
+--- @param _attempts number?
 function express:Get( id, cb, _attempts )
     _attempts = _attempts or 0
     local url = self:makeAccessURL( "read", id )
@@ -50,8 +59,17 @@ function express:Get( id, cb, _attempts )
             print( "express:Get() succeeded after " .. _attempts .. " attempts: " .. id )
         end
 
-        if string.StartWith( body, "<enc>" ) then
+        -- TODO: Remove this a day or two after releasing this update
+        -- (or just rework it right now while you're here...)
+        if string.StartsWith( body, "<enc>" ) then
             body = util.Decompress( string.sub( body, 6 ) )
+            if ( not body ) or #body == 0 then
+                error( "Express: Failed to decompress data for ID '" .. id .. "'." )
+            end
+        end
+
+        if string.StartsWith( body, "<lzma>" ) then
+            body = util.Decompress( string.sub( body, 7 ) )
             if ( not body ) or #body == 0 then
                 error( "Express: Failed to decompress data for ID '" .. id .. "'." )
             end
@@ -73,7 +91,9 @@ function express:Get( id, cb, _attempts )
 end
 
 
--- Asks the API for this ID's data's size --
+--- Asks the API for this ID's data's size
+--- @param id string
+--- @param cb function
 function express:GetSize( id, cb )
     local url = self:makeAccessURL( "size", id )
 
@@ -104,7 +124,9 @@ function express:GetSize( id, cb )
 end
 
 
--- Given prepared data, sends it to the API --
+--- Given prepared data, sends it to the API
+--- @param data string
+--- @param cb function
 function express:Put( data, cb )
     local success = function( code, body )
         express._checkResponseCode( code )
@@ -132,7 +154,10 @@ function express:Put( data, cb )
 end
 
 
--- Runs the express receiver for the given message --
+--- Runs the express receiver for the given message
+--- @param message string
+--- @param ply Player
+--- @param data table
 function express:Call( message, ply, data )
     local cb = self:_getReceiver( message )
     if not cb then return end
@@ -155,6 +180,8 @@ end
 -- Handles a net message containing an ID to download from the API --
 function express.OnMessage( _, ply )
     local message = net.ReadString()
+
+    -- TODO: Include sender information for Server, share with OnSmall
     if not express:_getReceiver( message ) then
         error( "Express: Received a message that has no listener! (" .. message .. ")" )
     end
@@ -200,8 +227,38 @@ function express.OnProof( _, ply )
 end
 
 
+-- The callback for messages that could already fit in a net message --
+function express.OnSmall( _, ply )
+    local message = net.ReadString()
+
+    -- TODO: Include sender information for Server, share with OnMessage
+    if not express:_getReceiver( message ) then
+        error( "Express: Received a message that has no listener! (" .. message .. ")" )
+    end
+
+    local needsProof = net.ReadBool()
+    local dataLen = net.ReadUInt( 16 )
+
+    if express:_getPreDlReceiver( message ) then
+        local check = express:CallPreDownload( message, ply, "", dataLen, needsProof )
+        if check == false then return end
+    end
+
+    local rawData = net.ReadData( dataLen )
+    local hash = util.SHA1( rawData )
+    local data = pon.decode( rawData )
+    express:Call( message, ply, data )
+
+    if not needsProof then return end
+
+    net.Start( "express_proof" )
+    net.WriteString( hash )
+    express.shSend( ply )
+end
+
 net.Receive( "express", express.OnMessage )
 net.Receive( "express_proof", express.OnProof )
+net.Receive( "express_small", express.OnSmall )
 
 include( "sh_helpers.lua" )
 

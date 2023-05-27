@@ -619,13 +619,15 @@ return {
             name = "express._getReceiver returns the valid receiver for the given message",
             func = function( state )
                 state.original_receivers = state.original_receivers or express._receivers
+
+                local cb = function() end
                 express._receivers = {
-                    ["test-message"] = "test-receiver"
+                    ["test-message"] = cb
                 }
 
                 local receiver = express:_getReceiver( "test-message" )
 
-                expect( receiver ).to.equal( "test-receiver" )
+                expect( receiver ).to.equal( cb )
             end,
             cleanup = function( state )
                 express._receivers = state.original_receivers
@@ -635,13 +637,15 @@ return {
             name = "express._getReceiver returns the valid receiver for the given message, regardless of casing",
             func = function( state )
                 state.original_receivers = state.original_receivers or express._receivers
+
+                local cb = function() end
                 express._receivers = {
-                    ["test-message"] = "test-receiver"
+                    ["test-message"] = cb
                 }
 
                 local receiver = express:_getReceiver( "TEST-MESSAGE" )
 
-                expect( receiver ).to.equal( "test-receiver" )
+                expect( receiver ).to.equal( cb )
             end,
             cleanup = function( state )
                 express._receivers = state.original_receivers
@@ -667,13 +671,15 @@ return {
             name = "express._getPreDlReceiver returns the valid receiver for the given message",
             func = function( state )
                 state.original_preDlReceivers = state.original_preDlReceivers or express._preDlReceivers
+
+                local cb = function() end
                 express._preDlReceivers = {
-                    ["test-message"] = "test-receiver"
+                    ["test-message"] = cb
                 }
 
                 local receiver = express:_getPreDlReceiver( "test-message" )
 
-                expect( receiver ).to.equal( "test-receiver" )
+                expect( receiver ).to.equal( cb )
             end,
             cleanup = function( state )
                 express._preDlReceivers = state.original_preDlReceivers
@@ -683,13 +689,15 @@ return {
             name = "express._getPreDlReceiver returns the valid receiver for the given message, regardless of casing",
             func = function( state )
                 state.original_preDlReceivers = state.original_preDlReceivers or express._preDlReceivers
+
+                local cb = function() end
                 express._preDlReceivers = {
-                    ["test-message"] = "test-receiver"
+                    ["test-message"] = cb
                 }
 
                 local receiver = express:_getPreDlReceiver( "TEST-MESSAGE" )
 
-                expect( receiver ).to.equal( "test-receiver" )
+                expect( receiver ).to.equal( cb )
             end,
             cleanup = function( state )
                 express._preDlReceivers = state.original_preDlReceivers

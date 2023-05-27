@@ -73,7 +73,6 @@ end
 
 -- Checks the version of the API and alerts of a mismatch --
 function express.CheckRevision()
-
     local suffix = " on version check! This is bad!"
     local err = function( msg )
         return "Express: " .. msg .. suffix
@@ -125,19 +124,32 @@ function express:_getSize( id, cb )
     end )
 end
 
+--- Sends a small (<63kb) message via net
+function express:_putSmall( message, data, plys, onProof )
+    local hash = util.SHA1( data )
+    local len = string.len( data )
 
----Encodes and compresses the given data, then sends it to the API if not already cached
-function express:_put( data, cb )
-    if table.Count( data ) == 0 then
-        error( "Express: Tried to send empty data!" )
+    if onProof then
+        self:SetExpected( hash, onProof, plys )
     end
 
-    data = pon.encode( data )
+    net.Start( "express_small" )
+    net.WriteString( message )
+    net.WriteBool( onProof ~= nil )
+    net.WriteUInt( len, 16 )
+    net.WriteData( data, len )
+    express.shSend( plys )
+end
 
-    if string.len( data ) > self._maxDataSize then
-        data = "<enc>" .. util.Compress( data )
+--- Encodes and compresses the given data, then sends it to the API if not already cached
+function express:_put( data, cb )
+    local len = string.len( data )
+
+    if len > self._maxDataSize then
+        data = "<lzma>" .. util.Compress( data )
         assert( data, "Express: Failed to compress data!" )
 
+        -- Get the new compressed length
         local dataLen = string.len( data )
         if dataLen > self._maxDataSize then
             error( "Express: Data too large (" .. dataLen .. " bytes)" )
@@ -201,6 +213,17 @@ end
 
 -- Calls the _put function with a contextual callback --
 function express:_send( message, data, plys, onProof )
+    if table.Count( data ) == 0 then
+        error( "Express: Tried to send empty data!" )
+    end
+
+    data = pon.encode( data )
+    local len = string.len( data )
+
+    if len < self._minDataSize then
+        return self:_putSmall( message, data, plys, onProof )
+    end
+
     self:_put( data, self:_putCallback( message, plys, onProof ) )
 end
 
