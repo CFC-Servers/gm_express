@@ -435,7 +435,9 @@ We tested Express' performance against two other options:
 <details>
 <summary><b>Test Setup</b></summary>
 
-Our findings are based on a series of tests where we generated data sets filled with random elements across a range of data types. We sent this data using each of the three options, one at a time.
+Our findings are based on a series of tests where we generated data sets filled with random elements across a range of data types. (`string`, `int`, `float`, `bool`, `Vector`, `Angle`, `Color`, `Entity`, `table`)
+
+We sent this data using each of the options, one at a time.
 
 These test were performed on a moderately-specced laptop. The server was a dedicated base-branch server run in WSL2. The client was base-branch clean-install run on Windows.
 
