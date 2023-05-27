@@ -437,11 +437,9 @@ Our findings are based on a series of tests where we generated data sets filled 
 
 These test were performed on a moderately-specced laptop. The server was a dedicated base-branch server run in WSL2. The client was base-branch clean-install run on Windows.
 
-For each test, we collected four key data points:
+For each test, we collected two key metrics:
 - **Duration**: The total time _(in seconds)_ it took to complete each test. This includes compression, serialization, sending, and acknowledgement.
 - **Message Count**: The number of net messages sent during the transfer. Fewer is usually better.
-- **Data Size**: The size of the data, serialized as JSON.
-- **Compressed Size**: The sie of the data, compresed using `util.Compress`.
 
 #### Test Details
 <details>
@@ -531,16 +529,20 @@ References:
 
 #### Test Result Takeaways
 
-- Express sends data significantly faster than both Manual Chunking and NetStream when the data size exceeds a certain threshold.
+- Express sends data significantly faster than both Manual Chunking and NetStream when the data size exceeds a certain threshold _(Roughly whenever 3 or more net messages would be required)_.
 - Express only sends up to 2 net messages per transfer, no matter the size of the data.
 - Despite its impressive performance with large data sizes, Express is less efficient than other methods for smaller data sizes.
+- _(NetStream is surprisingly slow, regardless of data size)_
 
-These tests illustrate how Express can significantly enhance data transfer speed and efficiency for large or even intermediate-scale data, but may underperform when handling smaller data sizes.
+#### Extra Notes
+- These results will depend heavily on networking conditions. For some people, lots of smaller messages may actually perform better than one large Express download.
+- Anything that uses the built-in net library _(like NetStream)_ will be more reliable than a library like Express, even if they may be slower overall.
 
-Understanding the trade-offs of Express can help you determine if it's the right fit for your project.
+These tests illustrate how Express can significantly improve data transfer speed and efficiency for large or even intermediate-scale data, but may underperform when handling smaller data sizes.
+
+Understanding the trade-offs of Express can help you determine if it's a good fit for your project.
 
 ## Case Studies
-
 
 <details>
 <summary><h3>Intricate ACF-3 Tank dupe :gun:</h3></summary>
