@@ -14,7 +14,7 @@ express._receivers = {}
 express._protocol = "http"
 express._awaitingProof = {}
 express._preDlReceivers = {}
-express._minDataSize = 63 * 102
+express._minDataSize = 63 * 1024
 express._maxDataSize = 24 * 1024 * 1024
 express._jsonHeaders = { ["Content-Type"] = "application/json" }
 express._bytesHeaders = { ["Accept"] = "application/octet-stream" }
@@ -229,6 +229,7 @@ end
 
 -- The callback for messages that could already fit in a net message --
 function express.OnSmall( _, ply )
+    print( "received small message" )
     local message = net.ReadString()
 
     -- TODO: Include sender information for Server, share with OnMessage
@@ -240,6 +241,7 @@ function express.OnSmall( _, ply )
     local dataLen = net.ReadUInt( 16 )
 
     if express:_getPreDlReceiver( message ) then
+        print( "calling preDl receiver for small message", message )
         local check = express:CallPreDownload( message, ply, "", dataLen, needsProof )
         if check == false then return end
     end

@@ -192,12 +192,14 @@ Very much like `express.Receive`, except this callback runs _before_ the `data` 
     - On <img src="https://user-images.githubusercontent.com/7936439/200705060-b5e57f56-a5a1-4c95-abfa-0d568be0aad6.png" width="15"> **CLIENT**, this callback receives:
         - **`string name`**: The name of the message
         - **`string id`**: The ID of the download _(used to retrieve the data from the API)_
+            - (**Note:** May be `""` for messages with small payloads)
         - **`int size`**: The size (in bytes) of the data
         - **`boolean needsProof`**: A boolean indicating whether or not the sender has requested proof-of-download
     - On <img src="https://user-images.githubusercontent.com/7936439/200705110-55b19d08-b342-4e94-a7c3-6b45baf98c2b.png" width="15"> **SERVER**, this callback receives:
         - **`string name`**: The name of the message
         - **`Player ply`**: The player that is sending the data
         - **`string id`**: The ID of the download _(used to retrieve the data from the API)_
+            - (**Note:** May be `""` for messages with small payloads)
         - **`int size`**: The size (in bytes) of the data
         - **`boolean needsProof`**: A boolean indicating whether or not the sender has requested proof-of-download
 
