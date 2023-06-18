@@ -36,13 +36,16 @@ function express:Get( id, cb, _attempts )
     _attempts = _attempts or 0
     local url = self:makeAccessURL( "read", id )
 
+    local retry = function()
+        assert( _attempts <= 35, "express:Get() failed to retrieve data after 35 attempts: " .. id )
+        timer.Simple( 0.125 * _attempts, function()
+            self:Get( id, cb, _attempts + 1 )
+        end )
+    end
+
     local success = function( code, body )
         if code == 404 then
-            assert( _attempts <= 35, "express:Get() failed to retrieve data after 35 attempts: " .. id )
-            timer.Simple( 0.125 * _attempts, function()
-                self:Get( id, cb, _attempts + 1 )
-            end )
-            return
+            return retry()
         end
 
         express._checkResponseCode( code )
@@ -51,7 +54,8 @@ function express:Get( id, cb, _attempts )
         end
 
         if string.StartWith( body, "<enc>" ) then
-            body = util.Decompress( string.sub( body, 6 ) )
+            body = util.Decompress( string.sub( body, 6 ), express._maxDataSize )
+
             if ( not body ) or #body == 0 then
                 error( "Express: Failed to decompress data for ID '" .. id .. "'." )
             end
@@ -62,11 +66,16 @@ function express:Get( id, cb, _attempts )
         cb( decodedData, hash )
     end
 
+    local failed = function( reason )
+        print( "Express: HTTP Failure: (URL: '" .. url .. "') (Reason: '" .. reason .. "')" )
+        return retry()
+    end
+
     HTTP( {
         method = "GET",
         url = url,
         success = success,
-        failed = error,
+        failed = failed,
         headers = self._bytesHeaders,
         timeout = self:_getTimeout()
     } )
