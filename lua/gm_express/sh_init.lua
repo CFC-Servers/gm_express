@@ -61,7 +61,7 @@ function express:Get( id, cb, _attempts )
             print( "express:Get() succeeded after " .. _attempts .. " attempts: " .. id )
         end
 
-        if string.StartsWith( body, "<enc>" ) then
+        if string.StartWith( body, "<enc>" ) then
             body = util.Decompress( string.sub( body, 6 ), express._maxDataSize )
 
             if ( not body ) or #body == 0 then

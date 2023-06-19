@@ -16,7 +16,7 @@ return {
                 expect( express._receivers ).to.beA( "table" )
 
                 expect( express._protocol ).to.exist()
-                expect( string.StartsWith( express._protocol, "http" ) ).to.beTrue()
+                expect( string.StartWith( express._protocol, "http" ) ).to.beTrue()
 
                 expect( express._maxDataSize ).to.exist()
                 expect( express._maxDataSize ).to.beA( "number" )
