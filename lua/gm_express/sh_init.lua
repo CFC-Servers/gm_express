@@ -10,6 +10,7 @@ end
 express = {}
 express._receivers = {}
 express._protocol = "http"
+express._maxRetries = 35
 express._awaitingProof = {}
 express._preDlReceivers = {}
 express._maxDataSize = 24 * 1024 * 1024
@@ -31,16 +32,23 @@ function express.ReceivePreDl( message, preDl )
 end
 
 
+-- Retry helper --
+function express:_retryGet( id, cb, _attempts )
+    local retries = express._maxRetries
+    assert( _attempts <= retries, "express:Get() failed to retrieve data after " .. retries .. " attempts: " .. id )
+    timer.Simple( 0.125 * _attempts, function()
+        express:Get( id, cb, _attempts + 1 )
+    end )
+end
+
+
 -- Retrieves and parses the data for given ID --
 function express:Get( id, cb, _attempts )
     _attempts = _attempts or 0
     local url = self:makeAccessURL( "read", id )
 
-    local retry = function()
-        assert( _attempts <= 35, "express:Get() failed to retrieve data after 35 attempts: " .. id )
-        timer.Simple( 0.125 * _attempts, function()
-            self:Get( id, cb, _attempts + 1 )
-        end )
+    local function retry()
+        return self:_retryGet( id, cb, _attempts )
     end
 
     local success = function( code, body )
@@ -53,7 +61,7 @@ function express:Get( id, cb, _attempts )
             print( "express:Get() succeeded after " .. _attempts .. " attempts: " .. id )
         end
 
-        if string.StartWith( body, "<enc>" ) then
+        if string.StartsWith( body, "<enc>" ) then
             body = util.Decompress( string.sub( body, 6 ), express._maxDataSize )
 
             if ( not body ) or #body == 0 then
@@ -67,7 +75,10 @@ function express:Get( id, cb, _attempts )
     end
 
     local failed = function( reason )
-        print( "Express: HTTP Failure: (URL: '" .. url .. "') (Reason: '" .. reason .. "')" )
+        if reason ~= "unsuccessful" then
+            print( "Express: HTTP Failure: (URL: '" .. url .. "') (Reason: '" .. reason .. "')" )
+        end
+
         return retry()
     end
 

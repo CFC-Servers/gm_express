@@ -16,7 +16,7 @@ return {
                 expect( express._receivers ).to.beA( "table" )
 
                 expect( express._protocol ).to.exist()
-                expect( string.StartWith( express._protocol, "http" ) ).to.beTrue()
+                expect( string.StartsWith( express._protocol, "http" ) ).to.beTrue()
 
                 expect( express._maxDataSize ).to.exist()
                 expect( express._maxDataSize ).to.beA( "number" )
@@ -101,7 +101,7 @@ return {
             name = "express.Get errors if the request fails",
             func = function()
                 local httpStub = stub( _G, "HTTP" ).with( function( options )
-                    expect( options.failed ).to.equal( error )
+                    expect( options.failed ).to.beA( "function" )
                 end )
 
                 express:Get( "test-id", stub() )
@@ -141,6 +141,44 @@ return {
 
                 expect( httpStub ).was.called()
                 expect( callback ).was.called()
+            end
+        },
+        {
+            name = "express.Get retries if it receives a failure",
+            func = function()
+                stub( util, "SHA1" ).returns( "test-hash" )
+                stub( util, "Decompress" ).returns( "test-data" )
+                stub( pon, "decode" ).returns( {} )
+
+                local callback = stub()
+
+                -- Simulate HTTP failure
+                stub( _G, "HTTP" ).with( function( options )
+                    options.failed( "unsuccessful" )
+                end )
+                local retryStub = stub( express, "_retryGet" )
+
+                express:Get( "test-id", callback )
+                expect( retryStub ).was.called()
+            end
+        },
+        {
+            name = "express.Get retries if it receives a 404",
+            func = function()
+                stub( util, "SHA1" ).returns( "test-hash" )
+                stub( util, "Decompress" ).returns( "test-data" )
+                stub( pon, "decode" ).returns( {} )
+
+                local callback = stub()
+
+                -- Simulate 404
+                stub( _G, "HTTP" ).with( function( options )
+                    options.success( 404, "Not Found" )
+                end )
+                local retryStub = stub( express, "_retryGet" )
+
+                express:Get( "test-id", callback )
+                expect( retryStub ).was.called()
             end
         },
 
@@ -417,6 +455,35 @@ return {
         {
             name = "express.OnProof runs the stored proof callback for the given hash",
             func = function()
+            end
+        },
+        {
+            name = "express._retryGet retries if it has sufficient attempts remaining",
+            async = true,
+            timeout = 1,
+            func = function()
+                local attempts = 1
+                local getStub = stub( express, "Get" )
+                express:_retryGet( "test-id", stub(), attempts )
+
+                timer.Simple( 0.2, function()
+                    expect( getStub ).was.called()
+                    done()
+                end )
+            end
+        },
+        {
+            name = "express._retryGet fails if it has no attempts remaining",
+            func = function()
+                local attempts = express._maxRetries + 1
+                local getStub = stub( express, "Get" )
+
+                local call = function()
+                    express:_retryGet( "test-id", stub(), attempts )
+                end
+
+                expect( call ).to.err()
+                expect( getStub ).wasNot.called()
             end
         }
     }
