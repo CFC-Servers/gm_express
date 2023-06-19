@@ -75,10 +75,7 @@ function express:Get( id, cb, _attempts )
     end
 
     local failed = function( reason )
-        if reason ~= "unsuccessful" then
-            print( "Express: HTTP Failure: (URL: '" .. url .. "') (Reason: '" .. reason .. "')" )
-        end
-
+        print( "Express: HTTP Failure: (URL: '" .. url .. "') (Reason: '" .. reason .. "')" )
         return retry()
     end
 
