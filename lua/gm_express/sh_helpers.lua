@@ -7,6 +7,9 @@ express._waitingForAccess = {}
 express.domain = CreateConVar(
     "express_domain", "gmod.express", FCVAR_ARCHIVE + FCVAR_REPLICATED, "The domain of the Express server"
 )
+express.downloadChunkSize = CreateConVar(
+    "express_download_chunk_size", tostring( 1024 * 1024 ), FCVAR_ARCHIVE, "The size of each chunk downloaded from the Express server"
+)
 
 -- Useful for self-hosting if you need to set express_domain to localhost
 -- and direct clients to a global IP/domain to hit the same service
