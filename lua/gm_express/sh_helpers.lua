@@ -1,6 +1,6 @@
 AddCSLuaFile()
 express.version = 1
-express.revision = 1
+express.revision = 2
 express._putCache = {}
 express._maxCacheTime = ( 24 - 1 ) * 60 * 60 -- TODO: Get this from the server, similar to the version check
 express._waitingForAccess = {}
@@ -157,7 +157,7 @@ function express:Get( id, cb )
             return finishDownload()
         end
 
-        rangeStart = rangeStart + #body + 1
+        rangeStart = rangeStart + #body
         rangeEnd = rangeStart + self.downloadChunkSize:GetInt()
         makeRequest()
     end
@@ -171,7 +171,6 @@ function express:Get( id, cb )
     makeRequest = function()
         -- We have to add 0-0 or the http call will fail :(
         headers.Range = string.format( "bytes=%d-%d, 0-0", rangeStart, rangeEnd )
-        print( "Express: Downloading " .. id .. " ( Range = " .. headers.Range .. " )" )
 
         HTTP( {
             method = "GET",
@@ -218,6 +217,7 @@ function express:_put( data, cb )
     end
 
     data = pon.encode( data )
+    local hash = util.SHA1( data )
 
     if string.len( data ) > self._maxDataSize then
         data = "<enc>" .. util.Compress( data )
@@ -228,8 +228,6 @@ function express:_put( data, cb )
             error( "Express: Data too large (" .. dataLen .. " bytes)" )
         end
     end
-
-    local hash = util.SHA1( data )
 
     local cached = self._putCache[hash]
     if cached then
