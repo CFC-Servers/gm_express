@@ -24,6 +24,10 @@ function express.Register()
 
     local url = express:makeBaseURL() .. "/register"
 
+    local failed = function( reason )
+        error( "Express: Failed to register with the API. This is bad! (reason " .. reason .. ")" )
+    end
+
     http.Fetch( url, function( body, _, _, code )
         express._checkResponseCode( code )
 
@@ -40,7 +44,7 @@ function express.Register()
         net.Start( "express_access" )
         net.WriteString( express._clientAccess )
         net.Broadcast()
-    end, error, express.jsonHeaders )
+    end, failed, express.jsonHeaders )
 end
 
 

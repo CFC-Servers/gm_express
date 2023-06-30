@@ -52,11 +52,15 @@ function express:GetSize( id, cb )
         cb( tonumber( size ) )
     end
 
+    local failed = function( reason )
+        error( "Express: Failed to get size for ID '" .. id .. "'.", reason )
+    end
+
     HTTP( {
         method = "GET",
         url = url,
         success = success,
-        failed = error,
+        failed = failed,
         headers = self._jsonHeaders,
         timeout = self:_getTimeout()
     } )
@@ -75,12 +79,16 @@ function express:Put( data, cb )
         cb( response.id )
     end
 
+    local failed = function( reason )
+        error( "Express: Failed to upload data: " .. reason )
+    end
+
     HTTP( {
         method = "POST",
         url = self:makeAccessURL( "write" ),
         body = data,
         success = success,
-        failed = error,
+        failed = failed,
         headers = {
             ["Content-Length"] = #data,
             ["Accept"] = "application/json"

@@ -11,7 +11,7 @@ express.downloadChunkSize = CreateConVar(
     "express_download_chunk_size", tostring( 1024 * 1024 ), FCVAR_ARCHIVE, "The size of each chunk downloaded from the Express server"
 )
 express.maxAttempts = CreateConVar(
-    "express_download_max_attempts", tostring( 20 ), FCVAR_ARCHIVE, "How many times to retry downloading a file before giving up"
+    "express_download_max_attempts", tostring( 10 ), FCVAR_ARCHIVE, "How many times to retry downloading a file before giving up"
 )
 express.retryDelay = CreateConVar(
     "express_download_retry_delay", tostring( 0.125 ), FCVAR_ARCHIVE, "The duration in seconds to wait between each download retry"
@@ -60,6 +60,12 @@ function express:makeAccessURL( action, ... )
     local args = { action, self.access,  ... }
 
     return url .. "/" .. table.concat( args, "/" )
+end
+
+function express.parseContentRange( header )
+    local pattern = "bytes (%d+)-(%d+)/(%d+)"
+    local rangeStart, rangeEnd, fullSize = header:match( pattern )
+    return tonumber( rangeStart ), tonumber( rangeEnd ), tonumber( fullSize )
 end
 
 
@@ -127,12 +133,13 @@ function express:Get( id, cb )
         end
 
         local hash = util.SHA1( fullBody )
+        ErrorNoHalt( "Express: Downloaded " .. #fullBody .. " bytes for ID '" .. id .. "' (SHA1: " .. hash .. ")" )
         local decodedData = pon.decode( fullBody )
         return cb( decodedData, hash )
     end
 
     local makeRequest
-    local function success( code, body )
+    local function success( code, body, responseHeaders )
         if code == 404 then
             if attempts >= self.maxAttempts:GetInt() then
                 ErrorNoHalt( "Express: Failed to download file after " .. attempts .. " attempts." )
@@ -152,18 +159,20 @@ function express:Get( id, cb )
             print( "Express:Get() succeeded after " .. attempts .. " attempts: " .. id )
         end
 
+        -- We had a successful download, so reset the attempts
+        attempts = 0
         fullBody = fullBody .. body
 
         -- If Range headers are supported on the server
         if code == 206 then
-            local fullSize = responseHeaders["X-Full-Content-Length"]
-            if #fullBody == tonumber( fullSize ) then
+            local _, _, fullSize = self.parseContentRange( responseHeaders["Content-Range"] )
+            if #fullBody == fullSize then
                 return finishDownload()
             end
 
-            rangeStart = rangeStart + #body
+            rangeStart = rangeEnd + 1
             rangeEnd = rangeStart + self.downloadChunkSize:GetInt()
-            makeRequest()
+            return makeRequest()
         end
 
         -- If we didn't receive a 206, then we should have received a 200 with the full file
@@ -172,14 +181,22 @@ function express:Get( id, cb )
     end
 
     local function failure( reason )
-        ErrorNoHalt( "Express: Failed to download file '" .. id .. "': " .. reason .. "\n" )
-        print( "Express: Trace for failed download:" )
-        print( tr, "\n" )
+        -- Unsuccessful HTTP requests might succeed on a retry
+        if reason == "unsuccessful" then
+            print( "Express: Failed to download file '" .. id .. "': HTTP request failed. Retrying." )
+            attempts = attempts + 1
+            makeRequest()
+        else
+            print( "Express: Trace for failed download:" )
+            print( tr, "\n" )
+            error( "Express: Failed to download file '" .. id .. "': " .. reason .. "\n" )
+        end
     end
 
     makeRequest = function()
         -- We have to add 0-0 or the http call will fail :(
         headers.Range = string.format( "bytes=%d-%d, 0-0", rangeStart, rangeEnd )
+        -- print( "Express: Downloading chunk " .. rangeStart .. " to " .. rangeEnd .. " of " .. id )
 
         HTTP( {
             method = "GET",
