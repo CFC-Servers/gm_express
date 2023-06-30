@@ -1,6 +1,6 @@
 AddCSLuaFile()
 express.version = 1
-express.revision = 2
+express.revision = 1
 express._putCache = {}
 express._maxCacheTime = ( 24 - 1 ) * 60 * 60 -- TODO: Get this from the server, similar to the version check
 express._waitingForAccess = {}
@@ -133,7 +133,7 @@ function express:Get( id, cb )
         end
 
         local hash = util.SHA1( fullBody )
-        ErrorNoHalt( "Express: Downloaded " .. #fullBody .. " bytes for ID '" .. id .. "' (SHA1: " .. hash .. ")" )
+        -- print( "Express: Downloaded " .. #fullBody .. " bytes for ID '" .. id .. "' (SHA1: " .. hash .. ")" )
         local decodedData = pon.decode( fullBody )
         return cb( decodedData, hash )
     end
