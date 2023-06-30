@@ -153,13 +153,22 @@ function express:Get( id, cb )
         end
 
         fullBody = fullBody .. body
-        if #body < self.downloadChunkSize:GetInt() then
-            return finishDownload()
+
+        -- If Range headers are supported on the server
+        if code == 206 then
+            local fullSize = responseHeaders["X-Full-Content-Length"]
+            if #fullBody == tonumber( fullSize ) then
+                return finishDownload()
+            end
+
+            rangeStart = rangeStart + #body
+            rangeEnd = rangeStart + self.downloadChunkSize:GetInt()
+            makeRequest()
         end
 
-        rangeStart = rangeStart + #body
-        rangeEnd = rangeStart + self.downloadChunkSize:GetInt()
-        makeRequest()
+        -- If we didn't receive a 206, then we should have received a 200 with the full file
+        -- This will happen if the express server doesn't support Range headers
+        return finishDownload()
     end
 
     local function failure( reason )
