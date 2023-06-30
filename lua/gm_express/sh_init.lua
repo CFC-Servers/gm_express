@@ -15,7 +15,7 @@ express._awaitingProof = {}
 express._preDlReceivers = {}
 express._maxDataSize = 24 * 1024 * 1024
 express._jsonHeaders = { ["Content-Type"] = "application/json" }
-express._bytesHeaders = { ["Accept"] = "application/octet-stream" }
+express._bytesHeaders = {}
 
 
 -- Removes a receiver --

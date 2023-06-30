@@ -10,15 +10,17 @@ express.domain = CreateConVar(
 express.downloadChunkSize = CreateConVar(
     "express_download_chunk_size", tostring( 1024 * 1024 ), FCVAR_ARCHIVE, "The size of each chunk downloaded from the Express server"
 )
+express.maxAttempts = CreateConVar(
+    "express_download_max_attempts", tostring( 20 ), FCVAR_ARCHIVE, "How many times to retry downloading a file before giving up"
+)
+express.retryDelay = CreateConVar(
+    "express_download_retry_delay", tostring( 0.125 ), FCVAR_ARCHIVE, "The duration in seconds to wait between each download retry"
+)
 
 -- Useful for self-hosting if you need to set express_domain to localhost
 -- and direct clients to a global IP/domain to hit the same service
 express.domain_cl = CreateConVar(
     "express_domain_cl", "", FCVAR_ARCHIVE + FCVAR_REPLICATED, "The client-specific domain of the Express server. If empty, express_domain will be used."
-)
-
-express.sendDelay = CreateConVar(
-    "express_send_delay", 0.15, FCVAR_ARCHIVE + FCVAR_REPLICATED, "How long to wait (in seconds) before sending the Express Message ID to the recipient (longer delays will result in increased reliability)"
 )
 
 
@@ -103,6 +105,86 @@ function express.CheckRevision()
     end, express.jsonHeaders )
 end
 
+function express:Get( id, cb )
+    local url = self:makeAccessURL( "read", id )
+
+    local attempts = 0
+    local tr = debug.traceback()
+
+    local rangeStart = 0
+    local rangeEnd = self.downloadChunkSize:GetInt()
+
+    local fullBody = ""
+    local headers = table.Copy( self._bytesHeaders )
+
+    local function finishDownload()
+        if string.StartWith( fullBody, "<enc>" ) then
+            fullBody = util.Decompress( string.sub( fullBody, 6 ) )
+            if (not fullBody) or #fullBody == 0 then
+                print( "\n", tr )
+                error( "Express: Failed to decompress data for ID '" .. id .. "'." )
+            end
+        end
+
+        local hash = util.SHA1( fullBody )
+        local decodedData = pon.decode( fullBody )
+        return cb( decodedData, hash )
+    end
+
+    local makeRequest
+    local function success( code, body )
+        if code == 404 then
+            if attempts >= self.maxAttempts:GetInt() then
+                ErrorNoHalt( "Express: Failed to download file after " .. attempts .. " attempts." )
+                print( "Express: Trace for failed download:" )
+                print( tr, "\n" )
+            else
+                attempts = attempts + 1
+                timer.Simple( self.retryDelay:GetFloat() + (attempts / 4), makeRequest )
+            end
+
+            return
+        end
+
+        express._checkResponseCode( code )
+
+        if attempts > 0 then
+            print( "Express:Get() succeeded after " .. attempts .. " attempts: " .. id )
+        end
+
+        fullBody = fullBody .. body
+        if #body < self.downloadChunkSize:GetInt() then
+            return finishDownload()
+        end
+
+        rangeStart = rangeStart + #body + 1
+        rangeEnd = rangeStart + self.downloadChunkSize:GetInt()
+        makeRequest()
+    end
+
+    local function failure( reason )
+        ErrorNoHalt( "Express: Failed to download file '" .. id .. "': " .. reason .. "\n" )
+        print( "Express: Trace for failed download:" )
+        print( tr, "\n" )
+    end
+
+    makeRequest = function()
+        -- We have to add 0-0 or the http call will fail :(
+        headers.Range = string.format( "bytes=%d-%d, 0-0", rangeStart, rangeEnd )
+        print( "Express: Downloading " .. id .. " ( Range = " .. headers.Range .. " )" )
+
+        HTTP( {
+            method = "GET",
+            url = url,
+            headers = headers,
+            success = success,
+            failed = failure,
+            timeout = self:_getTimeout()
+        } )
+    end
+
+    makeRequest()
+end
 
 -- Runs the main :Get function, or queues the request if no access token is set --
 function express:_get( id, cb )
@@ -186,18 +268,12 @@ function express:_putCallback( message, plys, onProof )
             self:SetExpected( hash, onProof, plys )
         end
 
-        -- Cloudflare isn't fulfilling their promise that the first lookup in
-        -- each region will "search" for the target key in K/V if it has't been cached yet.
-        -- This delay makes it more likely that the data will have "settled" into K/V before the first lookup
-        -- (Once it's cached as a 404, it'll stay that way for about 60 seconds)
-        timer.Simple( self.sendDelay:GetFloat(), function()
-            net.Start( "express" )
-            net.WriteString( message )
-            net.WriteString( id )
-            net.WriteBool( onProof ~= nil )
+        net.Start( "express" )
+        net.WriteString( message )
+        net.WriteString( id )
+        net.WriteBool( onProof ~= nil )
 
-            express.shSend( plys )
-        end )
+        express.shSend( plys )
     end
 end
 
