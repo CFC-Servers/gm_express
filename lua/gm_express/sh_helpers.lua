@@ -8,10 +8,10 @@ express.domain = CreateConVar(
     "express_domain", "gmod.express", FCVAR_ARCHIVE + FCVAR_REPLICATED, "The domain of the Express server"
 )
 express.downloadChunkSize = CreateConVar(
-    "express_download_chunk_size", tostring( 1024 * 1024 ), FCVAR_ARCHIVE, "The size of each chunk downloaded from the Express server"
+    "express_download_chunk_size", tostring( 8 * 1024 * 1024 ), FCVAR_ARCHIVE, "The size of each chunk downloaded from the Express server"
 )
 express.maxAttempts = CreateConVar(
-    "express_download_max_attempts", tostring( 10 ), FCVAR_ARCHIVE, "How many times to retry downloading a file before giving up"
+    "express_download_max_attempts", tostring( 12 ), FCVAR_ARCHIVE, "How many times to retry downloading a file before giving up"
 )
 express.retryDelay = CreateConVar(
     "express_download_retry_delay", tostring( 0.125 ), FCVAR_ARCHIVE, "The duration in seconds to wait between each download retry"
