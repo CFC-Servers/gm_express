@@ -14,8 +14,13 @@ express._maxRetries = 35
 express._awaitingProof = {}
 express._preDlReceivers = {}
 express._maxDataSize = 24 * 1024 * 1024
-express._jsonHeaders = { ["Content-Type"] = "application/json" }
-express._bytesHeaders = {}
+express._jsonHeaders = {
+    ["Accept"] = "application/json",
+    ["Content-Type"] = "application/json"
+}
+express._bytesHeaders = {
+    ["Accept"] = "application/octet-stream"
+}
 
 
 -- Removes a receiver --
@@ -90,7 +95,6 @@ function express:Put( data, cb )
         success = success,
         failed = failed,
         headers = {
-            ["Content-Length"] = #data,
             ["Accept"] = "application/json"
         },
         type = "application/octet-stream",

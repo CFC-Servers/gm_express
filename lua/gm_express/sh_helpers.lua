@@ -8,13 +8,16 @@ express.domain = CreateConVar(
     "express_domain", "gmod.express", FCVAR_ARCHIVE + FCVAR_REPLICATED, "The domain of the Express server"
 )
 express.downloadChunkSize = CreateConVar(
-    "express_download_chunk_size", tostring( 8 * 1024 * 1024 ), FCVAR_ARCHIVE, "The size of each chunk downloaded from the Express server"
+    "express_download_chunk_size", tostring( 8 * 1024 * 1024 ), FCVAR_ARCHIVE, "The size (in bytes) of each chunk downloaded from the Express server", 1
 )
 express.maxAttempts = CreateConVar(
-    "express_download_max_attempts", tostring( 12 ), FCVAR_ARCHIVE, "How many times to retry downloading a file before giving up"
+    "express_download_max_attempts", tostring( 12 ), FCVAR_ARCHIVE, "How many times to retry downloading a file before giving up", 0
 )
 express.retryDelay = CreateConVar(
-    "express_download_retry_delay", tostring( 0.125 ), FCVAR_ARCHIVE, "The duration in seconds to wait between each download retry"
+    "express_download_retry_delay", tostring( 0.125 ), FCVAR_ARCHIVE, "The duration in seconds to wait between each download retry", 0
+)
+express.usePutCache = CreateConVar(
+    "express_use_put_cache", tostring( 1 ), FCVAR_ARCHIVE, "Whether to cache POST requests to the Express server (minimizes re-sending the same data)", 0, 1
 )
 
 -- Useful for self-hosting if you need to set express_domain to localhost
@@ -115,8 +118,6 @@ function express:Get( id, cb )
     local url = self:makeAccessURL( "read", id )
 
     local attempts = 0
-    local tr = debug.traceback()
-
     local rangeStart = 0
     local rangeEnd = self.downloadChunkSize:GetInt()
 
@@ -125,29 +126,30 @@ function express:Get( id, cb )
 
     local function finishDownload()
         if string.StartWith( fullBody, "<enc>" ) then
+            print( "Express: Decompressing data for ID '" .. id .. "'." )
             fullBody = util.Decompress( string.sub( fullBody, 6 ) )
-            if (not fullBody) or #fullBody == 0 then
-                print( "\n", tr )
+            if ( not fullBody ) or #fullBody == 0 then
                 error( "Express: Failed to decompress data for ID '" .. id .. "'." )
             end
         end
 
         local hash = util.SHA1( fullBody )
-        -- print( "Express: Downloaded " .. #fullBody .. " bytes for ID '" .. id .. "' (SHA1: " .. hash .. ")" )
+        print( "Express: Downloaded " .. #fullBody .. " bytes for ID '" .. id .. "' (SHA1: " .. hash .. ")" )
         local decodedData = pon.decode( fullBody )
         return cb( decodedData, hash )
     end
 
     local makeRequest
     local function success( code, body, responseHeaders )
+        print( "Express: GET " .. url .. " : " .. tostring( code ), headers.Range, "Attempts: " .. attempts )
+
         if code == 404 then
             if attempts >= self.maxAttempts:GetInt() then
-                ErrorNoHalt( "Express: Failed to download file after " .. attempts .. " attempts." )
-                print( "Express: Trace for failed download:" )
-                print( tr, "\n" )
+                error( "Express: Failed to download file ' " .. url .. " ' after " .. attempts .. " attempts." )
             else
+                print( "Express:Get() got 404, retrying: " .. id )
                 attempts = attempts + 1
-                timer.Simple( self.retryDelay:GetFloat() + (attempts / 4), makeRequest )
+                timer.Simple( self.retryDelay:GetFloat() + ( attempts / 4 ), makeRequest )
             end
 
             return
@@ -156,7 +158,7 @@ function express:Get( id, cb )
         express._checkResponseCode( code )
 
         if attempts > 0 then
-            print( "Express:Get() succeeded after " .. attempts .. " attempts: " .. id )
+            print( "Express:Get() succeeded after " .. attempts .. " attempts" )
         end
 
         -- We had a successful download, so reset the attempts
@@ -183,19 +185,17 @@ function express:Get( id, cb )
     local function failure( reason )
         -- Unsuccessful HTTP requests might succeed on a retry
         if reason == "unsuccessful" then
-            print( "Express: Failed to download file '" .. id .. "': HTTP request failed. Retrying." )
+            print( "Express: Failed to download file '" .. url .. "': HTTP request failed. Retrying." )
             attempts = attempts + 1
             makeRequest()
         else
-            print( "Express: Trace for failed download:" )
-            print( tr, "\n" )
-            error( "Express: Failed to download file '" .. id .. "': " .. reason .. "\n" )
+            error( "Express: Failed to download file '" .. url .. "': " .. reason .. "\n" )
         end
     end
 
     makeRequest = function()
-        -- We have to add 0-0 or the http call will fail :(
-        headers.Range = string.format( "bytes=%d-%d, 0-0", rangeStart, rangeEnd )
+        -- We have to add 0-1 or the http call will fail :(
+        headers.Range = string.format( "bytes=%d-%d, 0-1", rangeStart, rangeEnd )
         -- print( "Express: Downloading chunk " .. rangeStart .. " to " .. rangeEnd .. " of " .. id )
 
         HTTP( {
@@ -255,22 +255,27 @@ function express:_put( data, cb )
         end
     end
 
-    local cached = self._putCache[hash]
-    if cached then
-        local cachedAt = cached.cachedAt
+    local now = os.time()
+    if express.usePutCache:GetBool() then
+        local cached = self._putCache[hash]
+        if cached then
+            local cachedAt = cached.cachedAt
 
-        if os.time() <= ( cachedAt + self._maxCacheTime ) then
-            -- Force the callback to run asynchronously for consistency
-            timer.Simple( 0, function()
-                cb( cached.id, hash )
-            end )
+            if now <= ( cachedAt + self._maxCacheTime ) then
+                print( "Express: Using cached ID '" .. cached.id .. "' for hash '" .. hash .. "'" )
 
-            return
+                -- Force the callback to run asynchronously for consistency
+                timer.Simple( 0, function()
+                    cb( cached.id, hash )
+                end )
+
+                return
+            end
         end
     end
 
     local function wrapCb( id )
-        self._putCache[hash] = { id = id, cachedAt = os.time() }
+        self._putCache[hash] = { id = id, cachedAt = now }
         cb( id, hash )
     end
 
