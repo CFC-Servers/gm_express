@@ -2,7 +2,7 @@ AddCSLuaFile()
 express.version = 1
 express.revision = 1
 express._putCache = {}
-express._maxCacheTime = ( 24 - 1 ) * 60 * 60 -- TODO: Get this from the server, similar to the version check
+express._maxCacheTime = ( 24 - 1 ) * 60 * 60
 express._waitingForAccess = {}
 express.domain = CreateConVar(
     "express_domain", "gmod.express", FCVAR_ARCHIVE + FCVAR_REPLICATED, "The domain of the Express server"
@@ -18,6 +18,14 @@ express.retryDelay = CreateConVar(
 )
 express.usePutCache = CreateConVar(
     "express_use_put_cache", tostring( 1 ), FCVAR_ARCHIVE, "Whether to cache POST requests to the Express server (minimizes re-sending the same data)", 0, 1
+)
+
+-- This really sucks, but it's a very niche limitation of Cloudflare's KV
+-- It sounds like they might fix it soon, but for now, this delay is necessary to decrease the chances of a 404
+-- (KV has to sync between US/EU, but clients only ask the one nearest to them, it takes a couple of seconds for larger payloads to sync)
+-- (This is only a problem if the recipient of your data is closer to the /other/ KV region [the one you dont write to])
+express.sendDelay = CreateConVar(
+    "express_send_delay", tostring( 1.5 ), FCVAR_ARCHIVE, "How long to wait (in seconds) before telling the recipient to download your file. Larger values increase reliability", 0
 )
 
 -- Useful for self-hosting if you need to set express_domain to localhost
@@ -289,7 +297,6 @@ function express:_put( data, cb )
 end
 
 
--- TODO: Fix GLuaTest so we can actually test this function...
 -- Creates a contextual callback for the :_put endpoint, delaying the notification to the recipient(s) --
 function express:_putCallback( message, plys, onProof )
     return function( id, hash )
@@ -297,12 +304,15 @@ function express:_putCallback( message, plys, onProof )
             self:SetExpected( hash, onProof, plys )
         end
 
-        net.Start( "express" )
-        net.WriteString( message )
-        net.WriteString( id )
-        net.WriteBool( onProof ~= nil )
+        -- TODO: Include the hash here
+        timer.Simple( self.sendDelay:GetFloat(), function()
+            net.Start( "express" )
+            net.WriteString( message )
+            net.WriteString( id )
+            net.WriteBool( onProof ~= nil )
 
-        express.shSend( plys )
+            express.shSend( plys )
+        end )
     end
 end
 
