@@ -133,10 +133,18 @@ function express:Get( id, cb )
             end
         end
 
-        local hash = util.SHA1( fullBody )
-        print( "Express: Downloaded " .. #fullBody .. " bytes for ID '" .. id .. "' (SHA1: " .. hash .. ")" )
-        local decodedData = pon.decode( fullBody )
-        return cb( decodedData, hash )
+        print( "Express: Downloaded " .. #fullBody .. " bytes for ID '" .. id )
+
+        if string.StartWith( fullBody, "<raw>" ) then
+            print( "Express: Returning raw data for ID '" .. id .. "'." )
+            fullBody = string.sub( fullBody, 6 )
+            local hash = util.SHA1( fullBody )
+            return cb( fullBody, hash )
+        else
+            local hash = util.SHA1( fullBody )
+            local decodedData = pon.decode( fullBody )
+            return cb( decodedData, hash )
+        end
     end
 
     local makeRequest
@@ -238,11 +246,24 @@ end
 
 ---Encodes and compresses the given data, then sends it to the API if not already cached
 function express:_put( data, cb )
-    if table.Count( data ) == 0 then
-        error( "Express: Tried to send empty data!" )
+    if istable( data ) then
+        print( "Express: Sending table data." )
+        if table.Count( data ) == 0 then
+            error( "Express: Tried to send empty data!" )
+        end
+
+        data = pon.encode( data )
+    elseif isstring( data ) then
+        print( "Express: Sending raw data." )
+        if #data == 0 then
+            error( "Express: Tried to send empty data!" )
+        end
+
+        data = "<raw>" .. data
+    else
+        error( "Express: Invalid data type '" .. type( data ) .. "'!" )
     end
 
-    data = pon.encode( data )
     local hash = util.SHA1( data )
 
     if string.len( data ) > self._maxDataSize then
