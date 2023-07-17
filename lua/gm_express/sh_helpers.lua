@@ -2,28 +2,39 @@ AddCSLuaFile()
 express.version = 1
 express.revision = 1
 express._putCache = {}
-express._maxCacheTime = ( 24 - 1 ) * 60 * 60
+express._maxCacheTime = (24 - 1) * 60 * 60
 express._waitingForAccess = {}
+
 express.domain = CreateConVar(
-    "express_domain", "gmod.express", FCVAR_ARCHIVE + FCVAR_REPLICATED, "The domain of the Express server"
+    "express_domain", "gmod.express", FCVAR_ARCHIVE + FCVAR_REPLICATED,
+    "The domain of the Express server"
 )
 express.downloadChunkSize = CreateConVar(
-    "express_download_chunk_size", tostring( 8 * 1024 * 1024 ), FCVAR_ARCHIVE, "The size (in bytes) of each chunk downloaded from the Express server", 1
+    "express_download_chunk_size", tostring( 8 * 1024 * 1024 ), FCVAR_ARCHIVE,
+    "The size (in bytes) of each chunk downloaded from the Express server", 1
 )
 express.maxAttempts = CreateConVar(
-    "express_download_max_attempts", tostring( 12 ), FCVAR_ARCHIVE, "How many times to retry downloading a file before giving up", 0
+    "express_download_max_attempts", tostring( 12 ), FCVAR_ARCHIVE,
+    "How many times to retry downloading a file before giving up", 0
 )
 express.retryDelay = CreateConVar(
-    "express_download_retry_delay", tostring( 0.125 ), FCVAR_ARCHIVE, "The duration in seconds to wait between each download retry", 0
+    "express_download_retry_delay", tostring( 0.125 ), FCVAR_ARCHIVE,
+    "The duration in seconds to wait between each download retry", 0
 )
 express.usePutCache = CreateConVar(
-    "express_use_put_cache", tostring( 1 ), FCVAR_ARCHIVE, "Whether to cache POST requests to the Express server (minimizes re-sending the same data)", 0, 1
+    "express_use_put_cache", tostring( 1 ), FCVAR_ARCHIVE,
+    "Whether to cache POST requests to the Express server (minimizes re-sending the same data)", 0, 1
+)
+express.timeout = CreateConVar(
+    "express_timeout", tostring( CLIENT and 280 or 60 ), FCVAR_ARCHIVE,
+    "The timeout in seconds for Express HTTP requests. (Flaky/slow connections should set this higher)", 1
 )
 
 -- Useful for self-hosting if you need to set express_domain to localhost
 -- and direct clients to a global IP/domain to hit the same service
 express.domain_cl = CreateConVar(
-    "express_domain_cl", "", FCVAR_ARCHIVE + FCVAR_REPLICATED, "The client-specific domain of the Express server. If empty, express_domain will be used."
+    "express_domain_cl", "", FCVAR_ARCHIVE + FCVAR_REPLICATED,
+    "The client-specific domain of the Express server. If empty, express_domain will be used."
 )
 
 
@@ -356,7 +367,7 @@ end
 
 -- Returns a realm-specific timeout value for HTTP requests --
 function express:_getTimeout()
-    return CLIENT and 240 or 60
+    return self.timeout:GetFloat()
 end
 
 
