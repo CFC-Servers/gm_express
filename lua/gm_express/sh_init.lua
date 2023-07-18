@@ -61,7 +61,7 @@ function express:GetSize( id, cb )
         error( "Express: Failed to get size for ID '" .. id .. "'.", reason )
     end
 
-    HTTP( {
+    self.HTTP( {
         method = "GET",
         url = url,
         success = success,
@@ -88,7 +88,7 @@ function express:Put( data, cb )
         error( "Express: Failed to upload data: " .. reason )
     end
 
-    HTTP( {
+    self.HTTP( {
         method = "POST",
         url = self:makeAccessURL( "write" ),
         body = data,
@@ -171,6 +171,11 @@ function express.OnProof( _, ply )
 end
 
 
+function express.HTTP( tbl )
+    return (express.HTTP_Override or _G.HTTP)( tbl )
+end
+
+
 net.Receive( "express", express.OnMessage )
 net.Receive( "express_proof", express.OnProof )
 
@@ -183,6 +188,20 @@ else
     include( "cl_init.lua" )
 end
 
-hook.Add( "CreateTeams", "ExpressLoaded", function()
-    hook.Run( "ExpressLoaded" )
-end  )
+do
+    local loaded = false
+    local function alertLoad()
+        loaded = true
+        hook.Run( "ExpressLoaded" )
+    end
+
+    hook.Add( "CreateTeams", "ExpressLoaded", alertLoad )
+
+    -- A backup in case our CreateTeams hook is never called
+    hook.Add( "Think", "ExpressLoadedBackup", function()
+        hook.Remove( "Think", "ExpressLoadedBackup" )
+        if loaded then return end
+
+        alertLoad()
+    end )
+end

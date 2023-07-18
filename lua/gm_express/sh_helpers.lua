@@ -105,7 +105,7 @@ function express.CheckRevision()
     end
 
     local url = express:makeBaseURL() .. "/revision"
-    local success = function( body, _, _, code )
+    local success = function( code, body )
         assert( code >= 200 and code < 300, err( "Invalid response code (" .. code .. ")" ) )
 
         local dataHolder = util.JSONToTable( body )
@@ -120,9 +120,16 @@ function express.CheckRevision()
         end
     end
 
-    http.Fetch( url, success, function( message )
-        error( err( message ) )
-    end, express.jsonHeaders )
+    express.HTTP( {
+        url = url,
+        method = "GET",
+        success = success,
+        failed = function( message )
+            error( err( message ) )
+        end,
+        headers = express.jsonHeaders,
+        timeout = express:_getTimeout()
+    } )
 end
 
 function express:Get( id, cb )
@@ -168,7 +175,7 @@ function express:Get( id, cb )
             else
                 print( "Express:Get() got 404, retrying: " .. id )
                 attempts = attempts + 1
-                timer.Simple( self.retryDelay:GetFloat() + ( attempts / 4 ), makeRequest )
+                timer.Simple( self.retryDelay:GetFloat() + (attempts / 4), makeRequest )
             end
 
             return
@@ -217,7 +224,7 @@ function express:Get( id, cb )
         headers.Range = string.format( "bytes=%d-%d, 0-1", rangeStart, rangeEnd )
         -- print( "Express: Downloading chunk " .. rangeStart .. " to " .. rangeEnd .. " of " .. id )
 
-        HTTP( {
+        express.HTTP( {
             method = "GET",
             url = url,
             headers = headers,
@@ -255,7 +262,7 @@ function express:_getSize( id, cb )
 end
 
 
----Encodes and compresses the given data, then sends it to the API if not already cached
+--- Encodes and compresses the given data, then sends it to the API if not already cached
 function express:_put( data, cb )
     if istable( data ) then
         print( "Express: Sending table data." )

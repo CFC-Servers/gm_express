@@ -28,13 +28,13 @@ function express.Register()
         error( "Express: Failed to register with the API. This is bad! (reason " .. reason .. ")" )
     end
 
-    http.Fetch( url, function( body, _, _, code )
+    local success = function( code, body )
         express._checkResponseCode( code )
 
         local response = util.JSONToTable( body )
         assert( response, "Invalid JSON" )
-        assert( response.server, "No server access token" )
-        assert( response.client, "No client access token" )
+        assert( response.server, "Could not get Server Access Token from API" )
+        assert( response.client, "Could not get Client Access Token from API" )
 
         express:SetAccess( response.server )
         express._clientAccess = response.client
@@ -44,7 +44,16 @@ function express.Register()
         net.Start( "express_access" )
         net.WriteString( express._clientAccess )
         net.Broadcast()
-    end, failed, express.jsonHeaders )
+    end
+
+    express.HTTP( {
+        url = url,
+        method = "GET",
+        success = success,
+        failed = failed,
+        headers = express.jsonHeaders,
+        timeout = express:_getTimeout()
+    } )
 end
 
 
