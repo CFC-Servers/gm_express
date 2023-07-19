@@ -167,7 +167,7 @@ function express:Get( id, cb )
 
     local makeRequest
     local function success( code, body, responseHeaders )
-        print( "Express: GET " .. url .. " : " .. tostring( code ), headers.Range, "Attempts: " .. attempts )
+        -- print( "Express: GET " .. url .. " : " .. tostring( code ), headers.Range, "Attempts: " .. attempts )
 
         if code == 404 then
             if attempts >= self.maxAttempts:GetInt() then
