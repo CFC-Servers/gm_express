@@ -58,7 +58,7 @@ function express:GetSize( id, cb )
     end
 
     local failed = function( reason )
-        error( "Express: Failed to get size for ID '" .. id .. "'.", reason )
+        error( "Express: Failed to get size for ID '" .. id .. "'. " .. reason )
     end
 
     self.HTTP( {
