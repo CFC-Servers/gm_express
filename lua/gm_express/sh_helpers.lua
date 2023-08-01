@@ -29,6 +29,10 @@ express.timeout = CreateConVar(
     "express_timeout", tostring( CLIENT and 280 or 60 ), FCVAR_ARCHIVE,
     "The timeout in seconds for Express HTTP requests. (Flaky/slow connections should set this higher)", 1
 )
+express.useRanges = CreateConVar(
+    "express_use_ranges", tostring( 1 ), FCVAR_ARCHIVE + FCVAR_REPLICATED,
+    "Whether or not to request data in Ranges. (Improves stability for bad internets, might avoid some bugs)", 0, 1
+)
 
 -- Useful for self-hosting if you need to set express_domain to localhost
 -- and direct clients to a global IP/domain to hit the same service
@@ -220,8 +224,10 @@ function express:Get( id, cb )
     end
 
     makeRequest = function()
-        -- We have to add 0-1 or the http call will fail :(
-        headers.Range = string.format( "bytes=%d-%d, 0-1", rangeStart, rangeEnd )
+        if express.useRanges:GetBool() then
+            -- We have to add 0-1 or the http call will fail :(
+            headers.Range = string.format( "bytes=%d-%d, 0-1", rangeStart, rangeEnd )
+        end
         -- print( "Express: Downloading chunk " .. rangeStart .. " to " .. rangeEnd .. " of " .. id )
 
         express.HTTP( {
