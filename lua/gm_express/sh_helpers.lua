@@ -155,8 +155,6 @@ function express:Get( id, cb )
             end
         end
 
-        print( "Express: Downloaded " .. #fullBody .. " bytes for ID '" .. id )
-
         if string.StartWith( fullBody, "<raw>" ) then
             print( "Express: Returning raw data for ID '" .. id .. "'." )
             fullBody = string.sub( fullBody, 6 )
