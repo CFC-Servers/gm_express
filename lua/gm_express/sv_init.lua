@@ -14,6 +14,54 @@ function express.Broadcast( message, data, onProof )
 end
 
 
+-- Asks the API for this ID's data's size --
+function express:GetSize( id, cb )
+    local url = self:makeAccessURL( "size", id )
+
+    local success = function( code, body )
+        express._checkResponseCode( code )
+
+        local sizeHolder = util.JSONToTable( body )
+        assert( sizeHolder, "Express: Invalid JSON when parsing: '" .. id .. "'" )
+
+        local size = sizeHolder.size
+        if not size then
+            print( "Express: Failed to get size for ID '" .. id .. "'.", code )
+            print( body )
+        end
+        assert( size, "Express: No size data for: '" .. id .. "'" )
+
+        cb( tonumber( size ) )
+    end
+
+    local failed = function( reason )
+        error( "Express: Failed to get size for ID '" .. id .. "'. " .. reason )
+    end
+
+    self.HTTP( {
+        method = "GET",
+        url = url,
+        success = success,
+        failed = failed,
+        headers = self._jsonHeaders,
+        timeout = self:_getTimeout()
+    } )
+end
+
+
+-- Runs the main :GetSize function, or queues the request if no access token is set --
+-- FIXME: If this gets delayed because it doesn't have an access token, the PreDl Receiver will not be able to stop the download --
+function express:_getSize( id, cb )
+    if self.access then
+        return self:GetSize( id, cb )
+    end
+
+    table.insert( self._waitingForAccess, function()
+        self:GetSize( id, cb )
+    end )
+end
+
+
 -- Registers with the current API, storing and distributing access tokens --
 function express.Register()
     -- All stored items expire after a day

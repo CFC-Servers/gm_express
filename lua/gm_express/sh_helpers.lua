@@ -21,10 +21,6 @@ express.retryDelay = CreateConVar(
     "express_download_retry_delay", tostring( 0.125 ), FCVAR_ARCHIVE,
     "The duration in seconds to wait between each download retry", 0
 )
-express.usePutCache = CreateConVar(
-    "express_use_put_cache", tostring( 1 ), FCVAR_ARCHIVE,
-    "Whether to cache POST requests to the Express server (minimizes re-sending the same data)", 0, 1
-)
 express.timeout = CreateConVar(
     "express_timeout", tostring( CLIENT and 280 or 60 ), FCVAR_ARCHIVE,
     "The timeout in seconds for Express HTTP requests. (Flaky/slow connections should set this higher)", 1
@@ -32,6 +28,10 @@ express.timeout = CreateConVar(
 express.useRanges = CreateConVar(
     "express_use_ranges", tostring( 1 ), FCVAR_ARCHIVE + FCVAR_REPLICATED,
     "Whether or not to request data in Ranges. (Improves stability for bad internets, might avoid some bugs)", 0, 1
+)
+express.compressThreshold = CreateConVar(
+    "express_compress_threshold", tostring( 20 * 1024 * 1024 ), FCVAR_ARCHIVE + FCVAR_REPLICATED,
+    "At what size will Express util.Compress the data - Compressing is slow - so try to only do it when you need it"
 )
 
 -- Useful for self-hosting if you need to set express_domain to localhost
@@ -147,7 +147,7 @@ function express:Get( id, cb )
     local headers = table.Copy( self._bytesHeaders )
 
     local function finishDownload()
-        if string.StartWith( fullBody, "<enc>" ) then
+        if string.StartsWith( fullBody, "<enc>" ) then
             print( "Express: Decompressing data for ID '" .. id .. "'." )
             fullBody = util.Decompress( string.sub( fullBody, 6 ) )
             if ( not fullBody ) or #fullBody == 0 then
@@ -155,7 +155,7 @@ function express:Get( id, cb )
             end
         end
 
-        if string.StartWith( fullBody, "<raw>" ) then
+        if string.StartsWith( fullBody, "<raw>" ) then
             print( "Express: Returning raw data for ID '" .. id .. "'." )
             fullBody = string.sub( fullBody, 6 )
             local hash = util.SHA1( fullBody )
@@ -253,19 +253,6 @@ function express:_get( id, cb )
 end
 
 
--- Runs the main :GetSize function, or queues the request if no access token is set --
--- FIXME: If this gets delayed because it doesn't have an access token, the PreDl Receiver will not be able to stop the download --
-function express:_getSize( id, cb )
-    if self.access then
-        return self:GetSize( id, cb )
-    end
-
-    table.insert( self._waitingForAccess, function()
-        self:GetSize( id, cb )
-    end )
-end
-
-
 --- Encodes and compresses the given data, then sends it to the API if not already cached
 function express:_put( data, cb )
     if istable( data ) then
@@ -287,39 +274,65 @@ function express:_put( data, cb )
     end
 
     local hash = util.SHA1( data )
-
-    if string.len( data ) > self._maxDataSize then
-        data = "<enc>" .. util.Compress( data )
-        assert( data, "Express: Failed to compress data!" )
-
-        local dataLen = string.len( data )
-        if dataLen > self._maxDataSize then
-            error( "Express: Data too large (" .. dataLen .. " bytes)" )
-        end
-    end
+    local dataLen = string.len( data )
 
     local now = os.time()
-    if express.usePutCache:GetBool() then
-        local cached = self._putCache[hash]
-        if cached then
+    local cached = self._putCache[hash]
+
+    if cached then
+        if cached.complete then
             local cachedAt = cached.cachedAt
 
             if now <= ( cachedAt + self._maxCacheTime ) then
-                print( "Express: Using cached ID '" .. cached.id .. "' for hash '" .. hash .. "'" )
+                local size = cached.size
+                local niceSize = string.NiceSize( size )
+                print( "Express: Using cached ID '" .. cached.id .. "' for hash '" .. hash .. "' (Saved you " .. niceSize .. "!)" )
 
                 -- Force the callback to run asynchronously for consistency
                 timer.Simple( 0, function()
-                    cb( cached.id, hash )
+                    cb( cached.id, hash, cached.size )
                 end )
 
                 return
             end
+        else
+            print( "Trying to send data that is already sending - waiting", hash )
+            table.insert( cached.waiting, cb )
+            return
         end
     end
 
+    print( "Data not cached - continuing", hash )
+
+    if dataLen > express.compressThreshold:GetFloat() then
+        data = "<enc>" .. util.Compress( data )
+        assert( data, "Express: Failed to compress data!" )
+
+        dataLen = string.len( data )
+    end
+
+    if dataLen > self._maxDataSize then
+        error( "Express: Data too large (" .. dataLen .. " bytes)" )
+    end
+
+    local cacheItem = {
+        size = dataLen,
+        waiting = {},
+        complete = false
+    }
+    self._putCache[hash] = cacheItem
+
     local function wrapCb( id )
-        self._putCache[hash] = { id = id, cachedAt = now }
-        cb( id, hash )
+        cacheItem.id = id
+        cacheItem.complete = true
+
+        local waiting = cacheItem.waiting
+        local count = #waiting
+        for _ = 1, count do
+            table.remove( waiting )( id, hash, dataLen )
+        end
+
+        cb( id, hash, dataLen )
     end
 
     if self.access then
@@ -334,15 +347,20 @@ end
 
 -- Creates a contextual callback for the :_put endpoint, delaying the notification to the recipient(s) --
 function express:_putCallback( message, plys, onProof )
-    return function( id, hash )
+    return function( id, hash, size )
         if onProof then
             self:SetExpected( hash, onProof, plys )
         end
 
         net.Start( "express" )
+        print( "Express: Sending message '" .. message .. "' to: ", plys )
         net.WriteString( message )
         net.WriteString( id )
         net.WriteBool( onProof ~= nil )
+
+        if SERVER then
+            net.WriteUInt( size, 27 )
+        end
 
         express.shSend( plys )
     end
@@ -351,6 +369,22 @@ end
 
 -- Calls the _put function with a contextual callback --
 function express:_send( message, data, plys, onProof )
+    if not isstring( message ) then
+        error( "Express: Invalid message type '" .. type( message ) .. "'!", 2 )
+    end
+
+    if not (istable( data ) or isstring( data )) then
+        error( "Express: Invalid data type '" .. type( data ) .. "'!" , 2)
+    end
+
+    if not (istable( plys ) or type( plys ) == "Player") then
+        error( "Express: Invalid player(s) type '" .. type( plys ) .. "'!", 2 )
+    end
+
+    if onProof and not isfunction( onProof ) then
+        error( "Express: Invalid proof callback type '" .. type( onProof ) .. "'!", 2 )
+    end
+
     self:_put( data, self:_putCallback( message, plys, onProof ) )
 end
 
