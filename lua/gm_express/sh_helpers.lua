@@ -10,7 +10,7 @@ express.domain = CreateConVar(
     "The domain of the Express server"
 )
 express.downloadChunkSize = CreateConVar(
-    "express_download_chunk_size", tostring( 8 * 1024 * 1024 ), FCVAR_ARCHIVE,
+    "express_download_chunk_size", tostring( 12 * 1024 * 1024 ), FCVAR_ARCHIVE,
     "The size (in bytes) of each chunk downloaded from the Express server", 1
 )
 express.maxAttempts = CreateConVar(
@@ -31,7 +31,11 @@ express.useRanges = CreateConVar(
 )
 express.compressThreshold = CreateConVar(
     "express_compress_threshold", tostring( 20 * 1024 * 1024 ), FCVAR_ARCHIVE + FCVAR_REPLICATED,
-    "At what size will Express util.Compress the data - Compressing is slow - so try to only do it when you need it"
+    "At what size (in bytes) will Express util.Compress the data - Compressing is slow - so try to only do it when you need it"
+)
+express.minSize = CreateConVar(
+    "express_min_size", tostring( 64 * 3 * 1024 ), FCVAR_ARCHIVE + FCVAR_REPLICATED,
+    "The minimum size (in bytes) that will send via express. Anything smaller than this will send with NetStream"
 )
 
 -- Useful for self-hosting if you need to set express_domain to localhost
@@ -88,8 +92,9 @@ end
 
 
 -- Sets the access token and runs requests that were waiting --
-function express:SetAccess( access )
+function express:SetAccess( access, clientAccess )
     self.access = access
+    self._clientAccess = clientAccess
 
     local waiting = self._waitingForAccess
     for _, callback in ipairs( waiting ) do
@@ -136,6 +141,27 @@ function express.CheckRevision()
     } )
 end
 
+function express.HandleReceivedData( body, id, cb )
+    if string.StartsWith( body, "<enc>" ) then
+        print( "Express: Decompressing data for ID '" .. id .. "'." )
+        body = util.Decompress( string.sub( body, 6 ) )
+        if ( not body ) or #body == 0 then
+            error( "Express: Failed to decompress data for ID '" .. id .. "'." )
+        end
+    end
+
+    if string.StartsWith( body, "<raw>" ) then
+        print( "Express: Returning raw data for ID '" .. id .. "'." )
+        body = string.sub( body, 6 )
+        local hash = util.SHA1( body )
+        return cb( body, hash )
+    else
+        local hash = util.SHA1( body )
+        local decodedData = pon.decode( body )
+        return cb( decodedData, hash )
+    end
+end
+
 function express:Get( id, cb )
     local url = self:makeAccessURL( "read", id )
 
@@ -145,27 +171,6 @@ function express:Get( id, cb )
 
     local fullBody = ""
     local headers = table.Copy( self._bytesHeaders )
-
-    local function finishDownload()
-        if string.StartsWith( fullBody, "<enc>" ) then
-            print( "Express: Decompressing data for ID '" .. id .. "'." )
-            fullBody = util.Decompress( string.sub( fullBody, 6 ) )
-            if ( not fullBody ) or #fullBody == 0 then
-                error( "Express: Failed to decompress data for ID '" .. id .. "'." )
-            end
-        end
-
-        if string.StartsWith( fullBody, "<raw>" ) then
-            print( "Express: Returning raw data for ID '" .. id .. "'." )
-            fullBody = string.sub( fullBody, 6 )
-            local hash = util.SHA1( fullBody )
-            return cb( fullBody, hash )
-        else
-            local hash = util.SHA1( fullBody )
-            local decodedData = pon.decode( fullBody )
-            return cb( decodedData, hash )
-        end
-    end
 
     local makeRequest
     local function success( code, body, responseHeaders )
@@ -197,7 +202,7 @@ function express:Get( id, cb )
         if code == 206 then
             local _, _, fullSize = self.parseContentRange( responseHeaders["Content-Range"] )
             if #fullBody == fullSize then
-                return finishDownload()
+                return express.HandleReceivedData( fullBody, id, cb )
             end
 
             rangeStart = rangeEnd + 1
@@ -207,7 +212,7 @@ function express:Get( id, cb )
 
         -- If we didn't receive a 206, then we should have received a 200 with the full file
         -- This will happen if the express server doesn't support Range headers
-        return finishDownload()
+        return express.HandleReceivedData( fullBody, id, cb )
     end
 
     local function failure( reason )
@@ -252,9 +257,9 @@ function express:_get( id, cb )
     end )
 end
 
-
---- Encodes and compresses the given data, then sends it to the API if not already cached
-function express:_put( data, cb )
+-- Processes/Formats the data that will be sent
+-- preCompressCallback is called before compression (the most expensive part) in case we want to do something different
+function express.processSendData( data, preCompressCallback )
     if istable( data ) then
         print( "Express: Sending table data." )
         if table.Count( data ) == 0 then
@@ -270,11 +275,43 @@ function express:_put( data, cb )
 
         data = "<raw>" .. data
     else
-        error( "Express: Invalid data type '" .. type( data ) .. "'!" )
+        error( "Express: Invalid data type '" .. type( data ) .. "'! (expected string or table)" )
     end
 
     local hash = util.SHA1( data )
-    local dataLen = string.len( data )
+    local size = string.len( data )
+    local struct = {
+        data = data,
+        hash = hash,
+        size = size
+    }
+
+    local shouldContinue = preCompressCallback( struct )
+    if shouldContinue == false then return end
+
+    if size > express.compressThreshold:GetFloat() then
+        local compressed = util.Compress( data )
+        assert( compressed, "Express: Failed to compress data!" )
+
+        size = string.len( data )
+
+        struct.size = size
+        struct.data = "<enc>" .. compressed
+    end
+
+    if size > express._maxDataSize then
+        error( "Express: Data too large (" .. size .. " bytes)" )
+    end
+
+    return struct
+end
+
+
+--- Sends the given data with Express
+--- Encodes and compresses the given data, then sends it to the API if not already cached
+function express:_put( struct, cb )
+    local size = struct.size
+    local hash = struct.hash
 
     local now = os.time()
     local cached = self._putCache[hash]
@@ -284,63 +321,49 @@ function express:_put( data, cb )
             local cachedAt = cached.cachedAt
 
             if now <= ( cachedAt + self._maxCacheTime ) then
-                local size = cached.size
-                local niceSize = string.NiceSize( size )
+                local cachedSize = cached.cachedSize
+                local niceSize = string.NiceSize( cachedSize )
                 print( "Express: Using cached ID '" .. cached.id .. "' for hash '" .. hash .. "' (Saved you " .. niceSize .. "!)" )
 
                 -- Force the callback to run asynchronously for consistency
                 timer.Simple( 0, function()
-                    cb( cached.id, hash, cached.size )
+                    cb( cached.id, hash, cachedSize )
                 end )
 
                 return
             end
         else
-            print( "Trying to send data that is already sending - waiting", hash )
             table.insert( cached.waiting, cb )
             return
         end
     end
 
-    print( "Data not cached - continuing", hash )
-
-    if dataLen > express.compressThreshold:GetFloat() then
-        data = "<enc>" .. util.Compress( data )
-        assert( data, "Express: Failed to compress data!" )
-
-        dataLen = string.len( data )
-    end
-
-    if dataLen > self._maxDataSize then
-        error( "Express: Data too large (" .. dataLen .. " bytes)" )
-    end
-
+    local waiting = {}
     local cacheItem = {
-        size = dataLen,
-        waiting = {},
+        size = size,
+        waiting = waiting,
         complete = false
     }
     self._putCache[hash] = cacheItem
 
-    local function wrapCb( id )
+    local function onComplete( id )
         cacheItem.id = id
         cacheItem.complete = true
 
-        local waiting = cacheItem.waiting
         local count = #waiting
         for _ = 1, count do
-            table.remove( waiting )( id, hash, dataLen )
+            table.remove( waiting )( id, hash, size )
         end
 
-        cb( id, hash, dataLen )
+        cb( id, hash, size )
     end
 
     if self.access then
-        return self:Put( data, wrapCb )
+        return self:Put( struct.data, onComplete )
     end
 
     table.insert( self._waitingForAccess, function()
-        self:Put( data, wrapCb )
+        self:Put( struct.data, onComplete )
     end )
 end
 
@@ -348,6 +371,10 @@ end
 -- Creates a contextual callback for the :_put endpoint, delaying the notification to the recipient(s) --
 function express:_putCallback( message, plys, onProof )
     return function( id, hash, size )
+        assert( id )
+        assert( hash )
+        assert( size )
+
         if onProof then
             self:SetExpected( hash, onProof, plys )
         end
@@ -367,6 +394,17 @@ function express:_putCallback( message, plys, onProof )
 end
 
 
+function express:_putSmall( struct, message, plys, onProof )
+    net.Start( "express_small" )
+    print( "Express: Sending NetStream message '" .. message .. "' to: ", plys )
+    net.WriteString( message )
+    net.WriteUInt( struct.size, 27 )
+    net.WriteBool( onProof ~= nil )
+    net.WriteStream( struct.data, onProof, true )
+    express.shSend( plys )
+end
+
+
 -- Calls the _put function with a contextual callback --
 function express:_send( message, data, plys, onProof )
     if not isstring( message ) then
@@ -374,18 +412,39 @@ function express:_send( message, data, plys, onProof )
     end
 
     if not (istable( data ) or isstring( data )) then
-        error( "Express: Invalid data type '" .. type( data ) .. "'!" , 2)
+        error( "Express: Invalid data type '" .. type( data ) .. "'!", 2)
     end
 
-    if not (istable( plys ) or type( plys ) == "Player") then
-        error( "Express: Invalid player(s) type '" .. type( plys ) .. "'!", 2 )
+    if SERVER then
+        if not (istable( plys ) or type( plys ) == "Player") then
+            error( "Express: Invalid player(s) type '" .. type( plys ) .. "'! (expected Player or table of Players)", 2 )
+        end
+    else
+        if ply ~= nil then
+            error( "Express: Invalid player(s) type '" .. type( plys ) .. "'! (expected nil on Client - are your args out of order?)", 2 )
+        end
     end
 
     if onProof and not isfunction( onProof ) then
         error( "Express: Invalid proof callback type '" .. type( onProof ) .. "'!", 2 )
     end
 
-    self:_put( data, self:_putCallback( message, plys, onProof ) )
+    -- Pre-compress callback is where we check if we should fallback to NetStream
+    local processed = express.processSendData( data, function( struct )
+        print( "Got processed data pre-compress callback" )
+
+        local size = struct.size
+
+        if size < express.minSize:GetFloat() then
+            print( "Express: Message ('" .. message .. "') is too small to send with express. Falling back to NetStream:", string.NiceSize( size ) )
+            self:_putSmall( struct, message, plys, onProof )
+            return false
+        end
+    end )
+
+    if not processed then return end
+
+    self:_put( processed, self:_putCallback( message, plys, onProof ) )
 end
 
 

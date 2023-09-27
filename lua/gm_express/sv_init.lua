@@ -84,8 +84,7 @@ function express.Register()
         assert( response.server, "Could not get Server Access Token from API" )
         assert( response.client, "Could not get Client Access Token from API" )
 
-        express:SetAccess( response.server )
-        express._clientAccess = response.client
+        express:SetAccess( response.server, response.client )
 
         if player.GetCount() == 0 then return end
 
@@ -137,9 +136,17 @@ net.Receive( "express_receivers_made", express._onReceiverMade )
 
 -- Send the player their access token as soon as it's safe to do so --
 function express._onPlayerLoaded( ply )
-    net.Start( "express_access" )
-    net.WriteString( express._clientAccess )
-    net.Send( ply )
+    local function sendAccess()
+        net.Start( "express_access" )
+        net.WriteString( express._clientAccess )
+        net.Send( ply )
+    end
+
+    if express._clientAccess then
+        return sendAccess()
+    end
+
+    table.insert( express._waitingForAccess, sendAccess )
 end
 
 hook.Add( "PlayerFullLoad", "Express_PlayerReady", express._onPlayerLoaded )
