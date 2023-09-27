@@ -419,10 +419,6 @@ function express:_send( message, data, plys, onProof )
         if not (istable( plys ) or type( plys ) == "Player") then
             error( "Express: Invalid player(s) type '" .. type( plys ) .. "'! (expected Player or table of Players)", 2 )
         end
-    else
-        if ply ~= nil then
-            error( "Express: Invalid player(s) type '" .. type( plys ) .. "'! (expected nil on Client - are your args out of order?)", 2 )
-        end
     end
 
     if onProof and not isfunction( onProof ) then

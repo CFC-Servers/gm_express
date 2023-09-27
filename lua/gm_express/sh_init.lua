@@ -132,7 +132,6 @@ end
 -- Handles a net message with data sent via NetStream
 function express.OnSmallMessage( _, ply )
     local message = net.ReadString()
-    print( "Received netstream-sent message", message )
 
     local hasReceiver = express:_getReceiver( message )
 
@@ -144,10 +143,8 @@ function express.OnSmallMessage( _, ply )
         local shouldHalt = false
 
         if express:_getPreDlReceiver( message ) then
-            print( "Calling Pre-dl for netstream message" )
             local check = express:CallPreDownload( message, ply, id, size, needsProof )
             if check == false then
-                print( "Pre-dl told us to stop - not processing received data" )
                 shouldHalt = true
             end
         end
@@ -155,10 +152,8 @@ function express.OnSmallMessage( _, ply )
         net.ReadStream( ply, function( body )
             -- FIXME: Still calls the onProof callbacak even if we exit early
             if shouldHalt then return end
-            print( "Read netstream data" )
 
             express.HandleReceivedData( body, "", function( data )
-                print( "Handled netstream data, calling receiver" )
                 express:Call( message, ply, data )
             end )
         end )
