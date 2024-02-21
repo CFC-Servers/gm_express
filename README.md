@@ -1,4 +1,7 @@
 # Express :bullettrain_side:
+<p align="left">
+    <a href="https://discord.gg/5JUqZjzmYJ" alt="Discord Invite"><img src="https://img.shields.io/discord/981394195812085770?label=Support&logo=discord&logoColor=white" /></a>
+</p>
 A lightning-fast networking library for Garry's Mod that allows you to quickly send large amounts of data between server/client with ease.
 
 Seriously, it's really easy! Take a look:
