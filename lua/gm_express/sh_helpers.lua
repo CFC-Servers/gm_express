@@ -27,7 +27,7 @@ express.timeout = CreateConVar(
 )
 express.useRanges = CreateConVar(
     "express_use_ranges", tostring( 1 ), FCVAR_ARCHIVE + FCVAR_REPLICATED,
-    "Whether or not to request data in Ranges. (Improves stability for bad internets, might avoid some bugs)", 0, 1
+    "Whether or not to request data in Ranges. (Improves stability for bad internets, might avoid some bugs, could slow things down)", 0, 1
 )
 express.compressThreshold = CreateConVar(
     "express_compress_threshold", tostring( 20 * 1024 * 1024 ), FCVAR_ARCHIVE + FCVAR_REPLICATED,
