@@ -321,7 +321,7 @@ function express:_put( struct, cb )
             local cachedAt = cached.cachedAt
 
             if now <= ( cachedAt + self._maxCacheTime ) then
-                local cachedSize = cached.cachedSize
+                local cachedSize = cached.size
                 local niceSize = string.NiceSize( cachedSize )
                 print( "Express: Using cached ID '" .. cached.id .. "' for hash '" .. hash .. "' (Saved you " .. niceSize .. "!)" )
 
@@ -342,7 +342,8 @@ function express:_put( struct, cb )
     local cacheItem = {
         size = size,
         waiting = waiting,
-        complete = false
+        complete = false,
+        cachedAt = now
     }
     self._putCache[hash] = cacheItem
 
