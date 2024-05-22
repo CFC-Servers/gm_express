@@ -23,7 +23,6 @@ return {
         {
             name = "It encodes a table",
             func = function( state )
-                PrintTable(sfs.decode(sfs.encode(state.tbl)))
                 expect( sfs.encode, state.tbl ).to.succeed()
             end
         },
