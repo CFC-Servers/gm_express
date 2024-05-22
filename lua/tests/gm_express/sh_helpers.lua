@@ -386,47 +386,17 @@ return {
                 state.original_access = state.original_access or express.access
                 express.access = "access-token"
 
-                local encode = stub( pon, "encode" ).returns( "encoded-data" )
-                local compress = stub( util, "Compress" ).returns( "hello" )
+                local encode = stub( sfs, "encode" ).returns( "encoded-data" )
                 local putStub = stub( express, "Put" )
 
                 express:_put( { "data" }, "callback" )
 
                 expect( encode ).was.called()
-                expect( compress ).wasNot.called()
                 expect( putStub ).was.called()
             end,
             cleanup = function( state )
                 express.access = state.original_access
                 express._putCache = {}
-            end
-        },
-        {
-            name = "express._put compresses the given data if the access token is set and data exceeds max size",
-            func = function( state )
-                -- Sanity check
-                expect( table.Count( express._putCache ) ).to.equal( 0 )
-
-                state.original_putCache = state.original_putCache or express._putCache
-                state.original_access = state.original_access or express.access
-                express.access = "access-token"
-
-                local encode = stub( pon, "encode" ).returns( "encoded-data" )
-                local compress = stub( util, "Compress" ).returns( "hello" )
-                local putStub = stub( express, "Put" )
-
-                stub( util, "SHA1" ).returns( "hash" )
-                stub( string, "len" ).returnsSequence( { express._maxDataSize + 1, 1 } )
-
-                express:_put( { "data" }, "callback" )
-
-                expect( encode ).was.called()
-                expect( compress ).was.called()
-                expect( putStub ).was.called()
-            end,
-            cleanup = function( state )
-                express.access = state.original_access
-                express._putCache = state.original_putCache
             end
         },
         {
@@ -439,14 +409,12 @@ return {
                 state.original_access = state.original_access or express.access
                 express.access = nil
 
-                local encode = stub( pon, "encode" ).returns( "encoded-data" )
-                local compress = stub( util, "Compress" ).returns( "hello" )
+                local encode = stub( sfs, "encode" ).returns( "encoded-data" )
                 local putStub = stub( express, "Put" )
 
                 express:_put( { "data" }, "callback" )
 
                 expect( encode ).was.called()
-                expect( compress ).wasNot.called()
                 expect( putStub ).wasNot.called()
 
                 expect( #express._waitingForAccess ).to.equal( 1 )
@@ -467,11 +435,10 @@ return {
                 expect( table.Count( express._putCache ) ).to.equal( 0 )
 
                 local mockData = "hello"
-                local expectedBytes = #( "<enc>" .. mockData )
+                local expectedBytes = #( mockData )
                 local putStub = stub( express, "Put" )
 
-                stub( pon, "encode" ).returns( mockData )
-                stub( util, "Compress" ).returns( mockData )
+                stub( sfs, "encode" ).returns( mockData )
 
                 expect( express._put, express, { "data" }, stub() ).to.errWith(
                     "Express: Data too large (" .. expectedBytes .. " bytes)"
@@ -504,8 +471,7 @@ return {
                     cachedAt = os.time()
                 }
 
-                stub( pon, "encode" ).returns( "encoded-data" )
-                stub( util, "Compress" ).returns( mockData )
+                stub( sfs, "encode" ).returns( "encoded-data" )
                 stub( util, "SHA1" ).returns( mockHash )
 
                 express:_put( mockData, mockCallback )
@@ -538,8 +504,7 @@ return {
                     cb( mockId )
                 end )
 
-                stub( pon, "encode" ).returns( "encoded-data" )
-                stub( util, "Compress" ).returns( mockData )
+                stub( sfs, "encode" ).returns( "encoded-data" )
                 stub( util, "SHA1" ).returns( mockHash )
 
                 express:_put( { "data" }, mockCallback )

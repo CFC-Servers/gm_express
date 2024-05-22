@@ -132,16 +132,13 @@ function express:_put( data, cb )
         error( "Express: Tried to send empty data!" )
     end
 
-    data = pon.encode( data )
+    data = sfs.encode( data )
 
-    if string.len( data ) > self._maxDataSize then
-        data = "<enc>" .. util.Compress( data )
-        assert( data, "Express: Failed to compress data!" )
+    assert(data, "Express: Failed to encode data")
 
-        local dataLen = string.len( data )
-        if dataLen > self._maxDataSize then
-            error( "Express: Data too large (" .. dataLen .. " bytes)" )
-        end
+    local dataLen = string.len( data )
+    if dataLen > self._maxDataSize then
+        error( "Express: Data too large (" .. dataLen .. " bytes)" )
     end
 
     local hash = util.SHA1( data )
