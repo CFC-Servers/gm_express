@@ -29,10 +29,6 @@ express.useRanges = CreateConVar(
     "express_use_ranges", tostring( 1 ), FCVAR_ARCHIVE + FCVAR_REPLICATED,
     "Whether or not to request data in Ranges. (Improves stability for bad internets, might avoid some bugs, could slow things down)", 0, 1
 )
-express.compressThreshold = CreateConVar(
-    "express_compress_threshold", tostring( 20 * 1024 * 1024 ), FCVAR_ARCHIVE + FCVAR_REPLICATED,
-    "At what size (in bytes) will Express util.Compress the data - Compressing is slow - so try to only do it when you need it"
-)
 express.minSize = CreateConVar(
     "express_min_size", tostring( 64 * 3 * 1024 ), FCVAR_ARCHIVE + FCVAR_REPLICATED,
     "The minimum size (in bytes) that will send via express. Anything smaller than this will send with NetStream"
@@ -142,14 +138,6 @@ function express.CheckRevision()
 end
 
 function express.HandleReceivedData( body, id, cb )
-    if string.StartsWith( body, "<enc>" ) then
-        print( "Express: Decompressing data for ID '" .. id .. "'." )
-        body = util.Decompress( string.sub( body, 6 ) )
-        if ( not body ) or #body == 0 then
-            error( "Express: Failed to decompress data for ID '" .. id .. "'." )
-        end
-    end
-
     if string.StartsWith( body, "<raw>" ) then
         print( "Express: Returning raw data for ID '" .. id .. "'." )
         body = string.sub( body, 6 )
@@ -157,7 +145,7 @@ function express.HandleReceivedData( body, id, cb )
         return cb( body, hash )
     else
         local hash = util.SHA1( body )
-        local decodedData = pon.decode( body )
+        local decodedData = sfs.decode( body )
         return cb( decodedData, hash )
     end
 end
@@ -229,9 +217,10 @@ function express:Get( id, cb )
     makeRequest = function()
         if express.useRanges:GetBool() then
             -- We have to add 0-1 or the http call will fail :(
+            -- FIXME: This has the nice side effect of printing an engine warning in console!
             headers.Range = string.format( "bytes=%d-%d, 0-1", rangeStart, rangeEnd )
         end
-        -- print( "Express: Downloading chunk " .. rangeStart .. " to " .. rangeEnd .. " of " .. id )
+        print( "Express: Downloading chunk " .. rangeStart .. " to " .. rangeEnd .. " of " .. id )
 
         express.HTTP( {
             method = "GET",
@@ -258,52 +247,46 @@ function express:_get( id, cb )
 end
 
 -- Processes/Formats the data that will be sent
--- preCompressCallback is called before compression (the most expensive part) in case we want to do something different
-function express.processSendData( data, preCompressCallback )
+function express.processSendData( data )
+    local processed = ""
+
     if istable( data ) then
         print( "Express: Sending table data." )
         if table.Count( data ) == 0 then
             error( "Express: Tried to send empty data!" )
         end
 
-        data = pon.encode( data )
+        local serialized = sfs.encode( data )
+        if not serialized then
+            error( "Express: Failed to encode table data!" )
+        end
+
+        processed = serialized
+
     elseif isstring( data ) then
         print( "Express: Sending raw data." )
         if #data == 0 then
             error( "Express: Tried to send empty data!" )
         end
 
-        data = "<raw>" .. data
+        processed = "<raw>" .. data
+
     else
         error( "Express: Invalid data type '" .. type( data ) .. "'! (expected string or table)" )
     end
 
-    local hash = util.SHA1( data )
-    local size = string.len( data )
-    local struct = {
-        data = data,
-        hash = hash,
-        size = size
-    }
-
-    local shouldContinue = preCompressCallback( struct )
-    if shouldContinue == false then return end
-
-    if size > express.compressThreshold:GetFloat() then
-        local compressed = util.Compress( data )
-        assert( compressed, "Express: Failed to compress data!" )
-
-        size = string.len( data )
-
-        struct.size = size
-        struct.data = "<enc>" .. compressed
-    end
+    local hash = util.SHA1( processed )
+    local size = string.len( processed )
 
     if size > express._maxDataSize then
         error( "Express: Data too large (" .. size .. " bytes)" )
     end
 
-    return struct
+    return {
+        data = processed,
+        hash = hash,
+        size = size
+    }
 end
 
 
@@ -413,7 +396,7 @@ function express:_send( message, data, plys, onProof )
     end
 
     if not (istable( data ) or isstring( data )) then
-        error( "Express: Invalid data type '" .. type( data ) .. "'!", 2)
+        error( "Express: Invalid data type '" .. type( data ) .. "'!", 2 )
     end
 
     if SERVER then
@@ -426,20 +409,18 @@ function express:_send( message, data, plys, onProof )
         error( "Express: Invalid proof callback type '" .. type( onProof ) .. "'!", 2 )
     end
 
-    -- Pre-compress callback is where we check if we should fallback to NetStream
-    local processed = express.processSendData( data, function( struct )
-        print( "Got processed data pre-compress callback" )
+    local processed = express.processSendData( data )
+    local size = processed.size
 
-        local size = struct.size
+    if size < express.minSize:GetFloat() then
+        print( "Express: Message ('" .. message .. "') is too small to send with express. Falling back to NetStream:", string.NiceSize( size ) )
+        self:_putSmall( struct, message, plys, onProof )
+        return false
+    end
 
-        if size < express.minSize:GetFloat() then
-            print( "Express: Message ('" .. message .. "') is too small to send with express. Falling back to NetStream:", string.NiceSize( size ) )
-            self:_putSmall( struct, message, plys, onProof )
-            return false
-        end
-    end )
-
-    if not processed then return end
+    if size > express._maxDataSize then
+        error( "Express: Data too large (" .. size .. " bytes)" )
+    end
 
     self:_put( processed, self:_putCallback( message, plys, onProof ) )
 end

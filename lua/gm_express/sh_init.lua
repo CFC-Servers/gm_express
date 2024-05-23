@@ -1,6 +1,6 @@
 AddCSLuaFile()
 
-require( "pon" )
+require( "sfs" )
 if SERVER then
     util.AddNetworkString( "express" )
     util.AddNetworkString( "express_proof" )
@@ -109,6 +109,7 @@ function express.OnMessage( _, ply )
             express:Call( message, ply, data )
 
             if not needsProof then return end
+            print( "Sending express proof", hash )
             net.Start( "express_proof" )
             net.WriteString( hash )
             express.shSend( ply )
@@ -172,11 +173,12 @@ function express.OnProof( _, ply )
     -- Server prefixes the hash with the player's Steam ID
     local prefix = ply and ply:SteamID64() .. "-" or ""
     local hash = prefix .. net.ReadString()
+    print( "Received express proof", hash )
 
     local cb = express._awaitingProof[hash]
     if not cb then return end
 
-    cb( ply )
+    ProtectedCall( cb, ply )
     express._awaitingProof[hash] = nil
 end
 
@@ -206,6 +208,7 @@ do
         hook.Run( "ExpressLoaded" )
     end
 
+    -- FIXME: This doesn't work in all gamemodes, what should we use instead?
     hook.Add( "CreateTeams", "ExpressLoaded", alertLoad )
 
     -- A backup in case our CreateTeams hook is never called

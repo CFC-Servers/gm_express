@@ -116,6 +116,7 @@ function express:SetExpected( hash, cb, plys )
 
     for _, ply in ipairs( plys ) do
         local key = ply:SteamID64() .. "-" .. hash
+        print( "Setting expected proof for", key )
         self._awaitingProof[key] = cb
     end
 end
