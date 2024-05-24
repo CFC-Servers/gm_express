@@ -414,7 +414,7 @@ function express:_send( message, data, plys, onProof )
 
     if size < express.minSize:GetFloat() then
         print( "Express: Message ('" .. message .. "') is too small to send with express. Falling back to NetStream:", string.NiceSize( size ) )
-        self:_putSmall( struct, message, plys, onProof )
+        self:_putSmall( processed, message, plys, onProof )
         return false
     end
 
