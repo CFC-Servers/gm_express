@@ -14,6 +14,29 @@ function express.Broadcast( message, data, onProof )
 end
 
 
+--- Seeds data with Express, which lets you leverage the cache for the first time you send it to a player
+--- @param data table|string
+--- @param cb function Callback to run when the data is seeded (called with the ID, hash, and Size)
+function express.Seed( data, cb )
+    local processed = express.processSendData( data )
+    local size = processed.size
+
+    if size < express.minSize:GetFloat() then
+        print( "Express: Message is too small to seed with express (It will use NetStream)", string.NiceSize( size ) )
+        debug.Trace()
+
+        return
+    end
+
+    if size > express._maxDataSize then
+        error( "Express: Data too large (" .. size .. " bytes)" )
+    end
+
+    print( "Express: Seeding data with Express", string.NiceSize( size ) )
+    express:_put( processed, cb )
+end
+
+
 -- Asks the API for this ID's data's size --
 function express:GetSize( id, cb )
     local url = self:makeAccessURL( "size", id )
