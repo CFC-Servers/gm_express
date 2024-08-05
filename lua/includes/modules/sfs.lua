@@ -1,3 +1,19 @@
+-- SFS (Srlion's Fast Serializer)
+-- we try to avoid NYI operations in luajit as much as possible
+-- unforunately, we can't avoid all of them in luajit 2.0.5 - pairs & table.concat
+-- https://github.com/tarantool/tarantool/wiki/LuaJIT-Not-Yet-Implemented
+-- we don't use string concating because it's also NYI in luajit 2.0.5
+-- we never error so we don't get blacklisted by the jit compiler
+-- errors return strings instead of throwing errors
+
+-- this is intentionally made for net messages, so you don't have to use pcall to check if there are any errors
+-- you should use this without using util.Compress, as this just adds one byte to each value, you will probably end up with a larger string if you compress it
+
+-- this idea is from messagepack which is really smart
+-- small numbers (0 ~ 127) and (-32 ~ -1) are encoded as a single byte
+-- tables and arrays are encoded with a prefix byte, which is the number of elements in the table or array, but it can be one byte if it's less than 16
+-- strings are encoded with a prefix byte, which is the length of the string, but it can be one byte if it's less than 32
+
 local math = math
 local HUGE = math.huge
 local floor = math.floor
@@ -225,7 +241,7 @@ do
         do
             -- this is the fastest possible way, a lot better than cbor's/messagepack's/pon's way of checking if it's an array
             local tbl_len = #tbl
-            if tbl_len > 0 and next(tbl, tbl_len) == nil then
+            if tbl_len > 0 and next(tbl, tbl_len) == nil and ((tbl_len == 1 and next(tbl) == 1) or (tbl_len > 1 and next(tbl, tbl_len - 1) == tbl_len)) then
                 if tbl[0] ~= nil then
                     return encoders.array(buf, tbl, tbl_len, 0)
                 else
@@ -1141,5 +1157,5 @@ _G.sfs = {
     end,
 
     chars = chars,
-    VERSION = "2.0.1"
+    VERSION = "2.0.3"
 }
