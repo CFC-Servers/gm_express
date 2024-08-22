@@ -121,7 +121,7 @@ function express.CheckRevision()
 
         local current = express.revision
         if revision ~= current then
-            error( err( "Revision mismatch! Expected " .. current .. ", got " .. revision ) )
+            error( "Express: Revision mismatch! Expected " .. current .. ", got " .. revision .. " (Update the addon?)" )
         end
     end
 
@@ -163,18 +163,6 @@ function express:Get( id, cb )
     local makeRequest
     local function success( code, body, responseHeaders )
         -- print( "Express: GET " .. url .. " : " .. tostring( code ), headers.Range, "Attempts: " .. attempts )
-
-        if code == 404 then
-            if attempts >= self.maxAttempts:GetInt() then
-                error( "Express: Failed to download file ' " .. url .. " ' after " .. attempts .. " attempts." )
-            else
-                print( "Express:Get() got 404, retrying: " .. id )
-                attempts = attempts + 1
-                timer.Simple( self.retryDelay:GetFloat() + (attempts / 4), makeRequest )
-            end
-
-            return
-        end
 
         express._checkResponseCode( code )
 
