@@ -1,8 +1,6 @@
 AddCSLuaFile()
 express.version = 1
 express.revision = 1
-express._putCache = {}
-express._maxCacheTime = (24 - 1) * 60 * 60
 express._waitingForAccess = {}
 
 express.domain = CreateConVar(
@@ -52,7 +50,8 @@ function express.shSend( target )
 end
 
 
--- Returns the correct domain based on the realm and convars --
+--- Returns the correct domain based on the realm and convars --
+--- @return string
 function express:getDomain()
     local domain = self.domain:GetString()
     if SERVER then return domain end
@@ -63,31 +62,38 @@ function express:getDomain()
     return domain
 end
 
-
--- Creates the base of the API URL from the protocol, domain, and version --
+--- Creates the base of the API URL from the protocol, domain, and version --
+--- @return string
 function express:makeBaseURL()
     local protocol = self._protocol
     local domain = self:getDomain()
     return string.format( "%s://%s/v%d", protocol, domain, self.version )
 end
 
-
 -- Creates a full URL with the given access token --
+-- @param action string The action to perform
+-- @param ... any Additional arguments to append to the URL
+-- @return string
 function express:makeAccessURL( action, ... )
     local url = self:makeBaseURL()
-    local args = { action, self.access,  ... }
+    local args = { action, self.access, ... }
 
     return url .. "/" .. table.concat( args, "/" )
 end
 
+--- Parses the Content-Range header into its components
+--- @param header string The Content-Range header
+--- @return number rangeStart, number rangeEnd, number fullSize
 function express.parseContentRange( header )
     local pattern = "bytes (%d+)-(%d+)/(%d+)"
     local rangeStart, rangeEnd, fullSize = header:match( pattern )
-    return tonumber( rangeStart ), tonumber( rangeEnd ), tonumber( fullSize )
+    return assert( tonumber( rangeStart ) ), assert( tonumber( rangeEnd ) ), assert( tonumber( fullSize ) )
 end
 
 
--- Sets the access token and runs requests that were waiting --
+-- Sets the access token and runs requests that were waiting
+-- @param access string The access token
+-- @param clientAccess string The client access token
 function express:SetAccess( access, clientAccess )
     self.access = access
     self._clientAccess = clientAccess
@@ -101,9 +107,8 @@ function express:SetAccess( access, clientAccess )
 end
 
 
--- Checks the version of the API and alerts of a mismatch --
+-- Checks the version of the API and alerts of a mismatch
 function express.CheckRevision()
-
     local suffix = " on version check! This is bad!"
     local err = function( msg )
         return "Express: " .. msg .. suffix
@@ -137,6 +142,10 @@ function express.CheckRevision()
     } )
 end
 
+--- Handles the data received from the server
+--- @param body string The body of the response
+--- @param id string The ID of the data
+--- @param cb function The callback to run with the decoded data
 function express.HandleReceivedData( body, id, cb )
     if string.StartsWith( body, "<raw>" ) then
         print( "Express: Returning raw data for ID '" .. id .. "'." )
@@ -284,50 +293,40 @@ function express:_put( struct, cb )
     local size = struct.size
     local hash = struct.hash
 
-    local now = os.time()
-    local cached = self._putCache[hash]
+    local putCache = self.putCache
+    local cached = putCache:Get( hash )
 
     if cached then
         if cached.complete then
-            local cachedAt = cached.cachedAt
+            local cachedSize = cached.size
+            local niceSize = string.NiceSize( cachedSize )
+            print( "Express: Using cached ID '" .. cached.id .. "' for hash '" .. hash .. "' (Saved you " .. niceSize .. "!)" )
 
-            if now <= ( cachedAt + self._maxCacheTime ) then
-                local cachedSize = cached.size
-                local niceSize = string.NiceSize( cachedSize )
-                print( "Express: Using cached ID '" .. cached.id .. "' for hash '" .. hash .. "' (Saved you " .. niceSize .. "!)" )
+            -- Force the callback to run asynchronously for consistency
+            timer.Simple( 0, function()
+                cb( cached.id, hash, cachedSize )
+            end )
 
-                -- Force the callback to run asynchronously for consistency
-                timer.Simple( 0, function()
-                    cb( cached.id, hash, cachedSize )
-                end )
-
-                return
-            end
+            return
         else
             table.insert( cached.waiting, cb )
             return
         end
     end
 
-    local waiting = {}
-    local cacheItem = {
-        size = size,
-        waiting = waiting,
-        complete = false,
-        cachedAt = now
-    }
-    self._putCache[hash] = cacheItem
+    local cacheItem = putCache:Set( hash, size )
 
     local function onComplete( id )
         cacheItem.id = id
         cacheItem.complete = true
 
-        local count = #waiting
+        local cachedSize = cacheItem.size
+        local count = cacheItem.waiting
         for _ = 1, count do
-            table.remove( waiting )( id, hash, size )
+            table.remove( waiting )( id, hash, cachedSize )
         end
 
-        cb( id, hash, size )
+        cb( id, hash, cachedSize )
     end
 
     if self.access then
@@ -452,7 +451,7 @@ end
 
 -- Attempts to re-register with the new domain, and then verifies its version --
 cvars.AddChangeCallback( "express_domain", function()
-    express._putCache = {}
+    express.putCache:Clear()
 
     if SERVER then express:Register() end
 
@@ -461,7 +460,7 @@ end, "domain_check" )
 
 -- Both client and server should check the version on startup so that errors are caught early --
 cvars.AddChangeCallback( "express_domain_cl", function( _, _, new )
-    if CLIENT then express._putCache = {} end
+    if CLIENT then express.putCache:Clear() end
     if new == "" then return end
 
     express:CheckRevision()

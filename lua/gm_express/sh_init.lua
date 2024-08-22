@@ -193,6 +193,7 @@ net.Receive( "express_proof", express.OnProof )
 net.Receive( "express_small", express.OnSmallMessage )
 
 include( "sh_helpers.lua" )
+include( "sh_putcache.lua" )
 
 if SERVER then
     include( "sv_init.lua" )
