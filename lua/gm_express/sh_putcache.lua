@@ -59,8 +59,6 @@ end
 
 --- Saves the Put Cache to disk
 function putCache:Save()
-    if not self.dirty then return end
-
     self.cache._domain = self.domain
     local encoded, err1, err2 = sfs.encode( self.cache )
     self.cache._domain = nil
@@ -112,6 +110,7 @@ hook.Add( "InitPostEntity", "express_putcache", function()
 end )
 
 timer.Create( "express_putcache", 60, 0, function()
+    if not putCache.dirty then return end
     putCache:Save()
 end )
 
