@@ -2,7 +2,16 @@
 <p align="left">
     <a href="https://discord.gg/5JUqZjzmYJ" alt="Discord Invite"><img src="https://img.shields.io/discord/981394195812085770?label=Support&logo=discord&logoColor=white" /></a>
 </p>
+
 A lightning-fast networking library for Garry's Mod that allows you to quickly send large amounts of data between server/client with ease.
+
+<br>
+
+**FYI:** Please consider testing the next release, it has signfiicant improvements over the base.
+Read more here: https://github.com/CFC-Servers/gm_express/pull/37
+
+<br>
+
 
 Seriously, it's really easy! Take a look:
 ```lua
@@ -69,6 +78,7 @@ end )
 ---
 
 </details>
+
 
 
 In this example, `huge_data_file.json` could be in excess of ~~100mb~~ _(soon)_ 25mb post-compression without Express even breaking a sweat.
