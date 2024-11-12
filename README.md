@@ -86,8 +86,10 @@ Doing it this way comes with a number of practical benefits:
 
 Express works by storing the data you send on Cloudflare's Edge servers. Using Cloudflare workers, KV, and D1, Express can cheaply serve millions of requests and store hundreds of gigabytes per month. Cloudflare's Edge servers offer extremely low-latency requests and data access to every corner of the globe.
 
-By default, Express uses [gmod.express](https://gmod.express), the public and free API provided by CFC Servers, but anyone can easily host their own!
+By default, Express uses [gmod.express](https://gmod.express) , the public and free API provided by CFC Servers, but anyone can easily host their own!
 Check out the [Express Service](https://github.com/CFC-Servers/gm_express_service) README for more information.
+
+_(Note: [gmodexpress.com](https://gmodexpress.com) is an alias URL that might help if some clients get random HTTP failures to gmod.express)_
 
 ## Usage
 
