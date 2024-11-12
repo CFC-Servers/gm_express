@@ -109,7 +109,7 @@ function express.OnMessage( _, ply )
             express:Call( message, ply, data )
 
             if not needsProof then return end
-            print( "Sending express proof", hash )
+
             net.Start( "express_proof" )
             net.WriteString( hash )
             express.shSend( ply )

@@ -103,9 +103,9 @@ end
 
 -- Checks the version of the API and alerts of a mismatch --
 function express.CheckRevision()
-
-    local suffix = " on version check! This is bad!"
+    local suffix = " on version check! (Is express up to date?)"
     local err = function( msg )
+        msg = "'" .. msg .. "'"
         return "Express: " .. msg .. suffix
     end
 
@@ -125,7 +125,7 @@ function express.CheckRevision()
         end
     end
 
-    express.HTTP( {
+    local madeRequest = express.HTTP( {
         url = url,
         method = "GET",
         success = success,
@@ -135,6 +135,10 @@ function express.CheckRevision()
         headers = express.jsonHeaders,
         timeout = express:_getTimeout()
     } )
+
+    if not madeRequest then
+        error( err( "HTTP request failed" ) )
+    end
 end
 
 function express.HandleReceivedData( body, id, cb )
@@ -192,6 +196,9 @@ function express:Get( id, cb )
     end
 
     local function failure( reason )
+        local shouldHalt = hook.Run( "Express_GetFailed", url, reason, attempts, id, cb )
+        if shouldHalt == true then return end
+
         -- Unsuccessful HTTP requests might succeed on a retry
         if reason == "unsuccessful" then
             print( "Express: Failed to download file '" .. url .. "': HTTP request failed. Retrying." )
@@ -244,9 +251,12 @@ function express.processSendData( data )
             error( "Express: Tried to send empty data!" )
         end
 
-        local serialized = sfs.encode( data )
+        local serialized, err = sfs.encode( data )
         if not serialized then
-            error( "Express: Failed to encode table data!" )
+            err = err or "unknown error"
+
+            local message = "Express: Failed to encode table data! (" .. err .. ")"
+            error( message )
         end
 
         processed = serialized
