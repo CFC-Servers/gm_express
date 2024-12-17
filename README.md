@@ -7,7 +7,7 @@ A lightning-fast networking library for Garry's Mod that allows you to quickly s
 
 <br>
 
-**FYI:** Please consider testing the next release, it has signfiicant improvements over the base.
+**FYI:** Please consider testing the next release, it has significant improvements over the base.
 Read more here: https://github.com/CFC-Servers/gm_express/pull/37
 
 <br>
@@ -535,7 +535,7 @@ For each test, we collected two key metrics:
 
 <details>
 <summary><b>Test 5</b> <code>(11.96 KB)</code>:</summary>
-<b>Summary: </b>Because this payload only requires a single net mesage, Express falls way behind of the pack in terms of transfer speed.
+<b>Summary: </b>Because this payload only requires a single net message, Express falls way behind of the pack in terms of transfer speed.
 
 | Data Size | Compressed Size |
 | -------------- | -------------------- |
