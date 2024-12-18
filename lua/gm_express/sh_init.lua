@@ -1,6 +1,6 @@
 AddCSLuaFile()
 
-require( "pon" )
+require( "sfs" )
 if SERVER then
     util.AddNetworkString( "express" )
     util.AddNetworkString( "express_proof" )
@@ -50,15 +50,8 @@ function express:Get( id, cb, _attempts )
             print( "express:Get() succeeded after " .. _attempts .. " attempts: " .. id )
         end
 
-        if string.StartWith( body, "<enc>" ) then
-            body = util.Decompress( string.sub( body, 6 ) )
-            if ( not body ) or #body == 0 then
-                error( "Express: Failed to decompress data for ID '" .. id .. "'." )
-            end
-        end
-
         local hash = util.SHA1( body )
-        local decodedData = pon.decode( body )
+        local decodedData = sfs.decode( body )
         cb( decodedData, hash )
     end
 
