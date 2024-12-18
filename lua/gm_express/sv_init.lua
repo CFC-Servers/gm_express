@@ -14,6 +14,77 @@ function express.Broadcast( message, data, onProof )
 end
 
 
+--- Seeds data with Express, which lets you leverage the cache for the first time you send it to a player
+--- @param data table|string
+--- @param cb function Callback to run when the data is seeded (called with the ID, hash, and Size)
+function express.Seed( data, cb )
+    local processed = express.processSendData( data )
+    local size = processed.size
+
+    if size < express.minSize:GetFloat() then
+        print( "Express: Message is too small to seed with express (It will use NetStream)", string.NiceSize( size ) )
+        debug.Trace()
+
+        return
+    end
+
+    if size > express._maxDataSize then
+        error( "Express: Data too large (" .. size .. " bytes)" )
+    end
+
+    print( "Express: Seeding data with Express", string.NiceSize( size ) )
+    express:_put( processed, cb )
+end
+
+
+-- Asks the API for this ID's data's size --
+function express:GetSize( id, cb )
+    local url = self:makeAccessURL( "size", id )
+
+    local success = function( code, body )
+        express._checkResponseCode( code )
+
+        local sizeHolder = util.JSONToTable( body )
+        assert( sizeHolder, "Express: Invalid JSON when parsing: '" .. id .. "'" )
+
+        local size = sizeHolder.size
+        if not size then
+            print( "Express: Failed to get size for ID '" .. id .. "'.", code )
+            print( body )
+        end
+        assert( size, "Express: No size data for: '" .. id .. "'" )
+
+        cb( tonumber( size ) )
+    end
+
+    local failed = function( reason )
+        error( "Express: Failed to get size for ID '" .. id .. "'. " .. reason )
+    end
+
+    self.HTTP( {
+        method = "GET",
+        url = url,
+        success = success,
+        failed = failed,
+        headers = self._jsonHeaders,
+        timeout = self:_getTimeout()
+    } )
+end
+
+
+-- Runs the main :GetSize function, or queues the request if no access token is set --
+-- FIXME: If this gets delayed because it doesn't have an access token, the PreDl Receiver will not be able to stop the download --
+function express:_getSize( id, cb )
+    if self.access then
+        return self:GetSize( id, cb )
+    end
+
+    table.insert( self._waitingForAccess, function()
+        self:GetSize( id, cb )
+    end )
+end
+
+
 -- Registers with the current API, storing and distributing access tokens --
 function express.Register()
     -- All stored items expire after a day
@@ -24,23 +95,35 @@ function express.Register()
 
     local url = express:makeBaseURL() .. "/register"
 
-    http.Fetch( url, function( body, _, _, code )
+    local failed = function( reason )
+        error( "Express: Failed to register with the API. This is bad! (reason " .. reason .. ")" )
+    end
+
+    local success = function( code, body )
         express._checkResponseCode( code )
 
         local response = util.JSONToTable( body )
         assert( response, "Invalid JSON" )
-        assert( response.server, "No server access token" )
-        assert( response.client, "No client access token" )
+        assert( response.server, "Could not get Server Access Token from API" )
+        assert( response.client, "Could not get Client Access Token from API" )
 
-        express:SetAccess( response.server )
-        express._clientAccess = response.client
+        express:SetAccess( response.server, response.client )
 
         if player.GetCount() == 0 then return end
 
         net.Start( "express_access" )
         net.WriteString( express._clientAccess )
         net.Broadcast()
-    end, error, express.jsonHeaders )
+    end
+
+    express.HTTP( {
+        url = url,
+        method = "GET",
+        success = success,
+        failed = failed,
+        headers = express.jsonHeaders,
+        timeout = express:_getTimeout()
+    } )
 end
 
 
@@ -56,6 +139,7 @@ function express:SetExpected( hash, cb, plys )
 
     for _, ply in ipairs( plys ) do
         local key = ply:SteamID64() .. "-" .. hash
+        print( "Setting expected proof for", key )
         self._awaitingProof[key] = cb
     end
 end
@@ -76,9 +160,17 @@ net.Receive( "express_receivers_made", express._onReceiverMade )
 
 -- Send the player their access token as soon as it's safe to do so --
 function express._onPlayerLoaded( ply )
-    net.Start( "express_access" )
-    net.WriteString( express._clientAccess )
-    net.Send( ply )
+    local function sendAccess()
+        net.Start( "express_access" )
+        net.WriteString( express._clientAccess )
+        net.Send( ply )
+    end
+
+    if express._clientAccess then
+        return sendAccess()
+    end
+
+    table.insert( express._waitingForAccess, sendAccess )
 end
 
 hook.Add( "PlayerFullLoad", "Express_PlayerReady", express._onPlayerLoaded )
