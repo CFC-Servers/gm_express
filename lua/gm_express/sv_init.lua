@@ -76,6 +76,10 @@ net.Receive( "express_receivers_made", express._onReceiverMade )
 
 -- Send the player their access token as soon as it's safe to do so --
 function express._onPlayerLoaded( ply )
+    if not express._clientAccess then
+        ErrorNoHaltWithStack( "express._clientAccess isn't set, this is bad!" )
+        return
+    end
     net.Start( "express_access" )
     net.WriteString( express._clientAccess )
     net.Send( ply )
