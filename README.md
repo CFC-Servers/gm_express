@@ -439,10 +439,10 @@ end )
 We tested Express' performance against two other options:
  - **Manual Chunking**:
    - This is a bare-minimum example script that serializes, compresses, and splits the data up across as few net messages as possible. _(This is typically what people do in smaller addons.)_
-   - _[Source](https://gist.github.com/brandonsturgeon/2e73b6e4595dd4476d87494ba4cb73b0#file-sender_chunking-lua)_
+   - _[Source](https://gist.github.com/sarahsturgeon/2e73b6e4595dd4476d87494ba4cb73b0#file-sender_chunking-lua)_
  - **NetStream**:
    - This library is very popular. It's the go-to choice for sending large chunks of data. It's currently used by Starfall, PAC3, AdvDupe2, etc.
-   - _[Source](https://gist.github.com/brandonsturgeon/2e73b6e4595dd4476d87494ba4cb73b0#file-netstream-lua)_
+   - _[Source](https://gist.github.com/sarahsturgeon/2e73b6e4595dd4476d87494ba4cb73b0#file-netstream-lua)_
 
 #### Test Details
 <details>
@@ -459,8 +459,8 @@ For each test, we collected two key metrics:
 - **Message Count**: The number of net messages sent during the transfer. Fewer is usually better.
 
 **References**:
- - [This](https://gist.github.com/brandonsturgeon/15d195b2a5f8480c6579cc89816d2ac3) is an example of the data sets that we use during the test runs.
- - You can view the raw test setup [here](https://gist.github.com/brandonsturgeon/2e73b6e4595dd4476d87494ba4cb73b0).
+ - [This](https://gist.github.com/sarahsturgeon/15d195b2a5f8480c6579cc89816d2ac3) is an example of the data sets that we use during the test runs.
+ - You can view the raw test setup [here](https://gist.github.com/sarahsturgeon/2e73b6e4595dd4476d87494ba4cb73b0).
 </details>
 
 <details>
