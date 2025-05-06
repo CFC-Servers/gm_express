@@ -2,20 +2,43 @@ AddCSLuaFile()
 express.version = 1
 express.revision = 1
 express._putCache = {}
-express._maxCacheTime = ( 24 - 1 ) * 60 * 60 -- TODO: Get this from the server, similar to the version check
+express._maxCacheTime = (24 - 1) * 60 * 60
 express._waitingForAccess = {}
+
 express.domain = CreateConVar(
-    "express_domain", "gmod.express", FCVAR_ARCHIVE + FCVAR_REPLICATED, "The domain of the Express server"
+    "express_domain", "gmod.express", FCVAR_ARCHIVE + FCVAR_REPLICATED,
+    "The domain of the Express server"
+)
+express.downloadChunkSize = CreateConVar(
+    "express_download_chunk_size", tostring( 12 * 1024 * 1024 ), FCVAR_ARCHIVE,
+    "The size (in bytes) of each chunk downloaded from the Express server", 1
+)
+express.maxAttempts = CreateConVar(
+    "express_download_max_attempts", tostring( 12 ), FCVAR_ARCHIVE,
+    "How many times to retry downloading a file before giving up", 0
+)
+express.retryDelay = CreateConVar(
+    "express_download_retry_delay", tostring( 0.125 ), FCVAR_ARCHIVE,
+    "The duration in seconds to wait between each download retry", 0
+)
+express.timeout = CreateConVar(
+    "express_timeout", tostring( CLIENT and 280 or 60 ), FCVAR_ARCHIVE,
+    "The timeout in seconds for Express HTTP requests. (Flaky/slow connections should set this higher)", 1
+)
+express.useRanges = CreateConVar(
+    "express_use_ranges", tostring( 1 ), FCVAR_ARCHIVE + FCVAR_REPLICATED,
+    "Whether or not to request data in Ranges. (Improves stability for bad internets, might avoid some bugs, could slow things down)", 0, 1
+)
+express.minSize = CreateConVar(
+    "express_min_size", tostring( 64 * 3 * 1024 ), FCVAR_ARCHIVE + FCVAR_REPLICATED,
+    "The minimum size (in bytes) that will send via express. Anything smaller than this will send with NetStream"
 )
 
 -- Useful for self-hosting if you need to set express_domain to localhost
 -- and direct clients to a global IP/domain to hit the same service
 express.domain_cl = CreateConVar(
-    "express_domain_cl", "", FCVAR_ARCHIVE + FCVAR_REPLICATED, "The client-specific domain of the Express server. If empty, express_domain will be used."
-)
-
-express.sendDelay = CreateConVar(
-    "express_send_delay", 0.15, FCVAR_ARCHIVE + FCVAR_REPLICATED, "How long to wait (in seconds) before sending the Express Message ID to the recipient (longer delays will result in increased reliability)"
+    "express_domain_cl", "", FCVAR_ARCHIVE + FCVAR_REPLICATED,
+    "The client-specific domain of the Express server. If empty, express_domain will be used."
 )
 
 
@@ -57,10 +80,17 @@ function express:makeAccessURL( action, ... )
     return url .. "/" .. table.concat( args, "/" )
 end
 
+function express.parseContentRange( header )
+    local pattern = "bytes (%d+)-(%d+)/(%d+)"
+    local rangeStart, rangeEnd, fullSize = header:match( pattern )
+    return tonumber( rangeStart ), tonumber( rangeEnd ), tonumber( fullSize )
+end
+
 
 -- Sets the access token and runs requests that were waiting --
-function express:SetAccess( access )
+function express:SetAccess( access, clientAccess )
     self.access = access
+    self._clientAccess = clientAccess
 
     local waiting = self._waitingForAccess
     for _, callback in ipairs( waiting ) do
@@ -73,14 +103,14 @@ end
 
 -- Checks the version of the API and alerts of a mismatch --
 function express.CheckRevision()
-
-    local suffix = " on version check! This is bad!"
+    local suffix = " on version check! (Is express up to date?)"
     local err = function( msg )
+        msg = "'" .. msg .. "'"
         return "Express: " .. msg .. suffix
     end
 
     local url = express:makeBaseURL() .. "/revision"
-    local success = function( body, _, _, code )
+    local success = function( code, body )
         assert( code >= 200 and code < 300, err( "Invalid response code (" .. code .. ")" ) )
 
         local dataHolder = util.JSONToTable( body )
@@ -91,15 +121,114 @@ function express.CheckRevision()
 
         local current = express.revision
         if revision ~= current then
-            error( err( "Revision mismatch! Expected " .. current .. ", got " .. revision ) )
+            error( "Express: Revision mismatch! Expected " .. current .. ", got " .. revision .. " (Update the addon?)" )
         end
     end
 
-    http.Fetch( url, success, function( message )
-        error( err( message ) )
-    end, express.jsonHeaders )
+    local madeRequest = express.HTTP( {
+        url = url,
+        method = "GET",
+        success = success,
+        failed = function( message )
+            error( err( message ) )
+        end,
+        headers = express.jsonHeaders,
+        timeout = express:_getTimeout()
+    } )
+
+    if not madeRequest then
+        error( err( "HTTP request failed" ) )
+    end
 end
 
+function express.HandleReceivedData( body, id, cb )
+    if string.StartsWith( body, "<raw>" ) then
+        print( "Express: Returning raw data for ID '" .. id .. "'." )
+        body = string.sub( body, 6 )
+        local hash = util.SHA1( body )
+        return cb( body, hash )
+    else
+        local hash = util.SHA1( body )
+        local decodedData = sfs.decode( body )
+        return cb( decodedData, hash )
+    end
+end
+
+function express:Get( id, cb )
+    local url = self:makeAccessURL( "read", id )
+
+    local attempts = 0
+    local rangeStart = 0
+    local rangeEnd = self.downloadChunkSize:GetInt()
+
+    local fullBody = ""
+    local headers = table.Copy( self._bytesHeaders )
+
+    local makeRequest
+    local function success( code, body, responseHeaders )
+        -- print( "Express: GET " .. url .. " : " .. tostring( code ), headers.Range, "Attempts: " .. attempts )
+
+        express._checkResponseCode( code )
+
+        if attempts > 0 then
+            print( "Express:Get() succeeded after " .. attempts .. " attempts" )
+        end
+
+        -- We had a successful download, so reset the attempts
+        attempts = 0
+        fullBody = fullBody .. body
+
+        -- If Range headers are supported on the server
+        if code == 206 then
+            local _, _, fullSize = self.parseContentRange( responseHeaders["Content-Range"] )
+            if #fullBody == fullSize then
+                return express.HandleReceivedData( fullBody, id, cb )
+            end
+
+            rangeStart = rangeEnd + 1
+            rangeEnd = rangeStart + self.downloadChunkSize:GetInt()
+            return makeRequest()
+        end
+
+        -- If we didn't receive a 206, then we should have received a 200 with the full file
+        -- This will happen if the express server doesn't support Range headers
+        return express.HandleReceivedData( fullBody, id, cb )
+    end
+
+    local function failure( reason )
+        local shouldHalt = hook.Run( "Express_GetFailed", url, reason, attempts, id, cb )
+        if shouldHalt == true then return end
+
+        -- Unsuccessful HTTP requests might succeed on a retry
+        if reason == "unsuccessful" then
+            print( "Express: Failed to download file '" .. url .. "': HTTP request failed. Retrying." )
+            attempts = attempts + 1
+            makeRequest()
+        else
+            error( "Express: Failed to download file '" .. url .. "': " .. reason .. "\n" )
+        end
+    end
+
+    makeRequest = function()
+        if express.useRanges:GetBool() then
+            -- We have to add 0-1 or the http call will fail :(
+            -- FIXME: This has the nice side effect of printing an engine warning in console!
+            headers.Range = string.format( "bytes=%d-%d, 0-1", rangeStart, rangeEnd )
+        end
+        print( "Express: Downloading chunk " .. rangeStart .. " to " .. rangeEnd .. " of " .. id )
+
+        express.HTTP( {
+            method = "GET",
+            url = url,
+            headers = headers,
+            success = success,
+            failed = failure,
+            timeout = self:_getTimeout()
+        } )
+    end
+
+    makeRequest()
+end
 
 -- Runs the main :Get function, or queues the request if no access token is set --
 function express:_get( id, cb )
@@ -112,96 +241,186 @@ function express:_get( id, cb )
     end )
 end
 
+-- Processes/Formats the data that will be sent
+function express.processSendData( data )
+    local processed = ""
 
--- Runs the main :GetSize function, or queues the request if no access token is set --
--- FIXME: If this gets delayed because it doesn't have an access token, the PreDl Receiver will not be able to stop the download --
-function express:_getSize( id, cb )
-    if self.access then
-        return self:GetSize( id, cb )
+    if istable( data ) then
+        print( "Express: Sending table data." )
+        if table.Count( data ) == 0 then
+            error( "Express: Tried to send empty data!" )
+        end
+
+        local serialized, err = sfs.encode( data )
+        if not serialized then
+            err = err or "unknown error"
+
+            local message = "Express: Failed to encode table data! (" .. err .. ")"
+            error( message )
+        end
+
+        processed = serialized
+
+    elseif isstring( data ) then
+        print( "Express: Sending raw data." )
+        if #data == 0 then
+            error( "Express: Tried to send empty data!" )
+        end
+
+        processed = "<raw>" .. data
+
+    else
+        error( "Express: Invalid data type '" .. type( data ) .. "'! (expected string or table)" )
     end
 
-    table.insert( self._waitingForAccess, function()
-        self:GetSize( id, cb )
-    end )
+    local hash = util.SHA1( processed )
+    local size = string.len( processed )
+
+    if size > express._maxDataSize then
+        error( "Express: Data too large (" .. size .. " bytes)" )
+    end
+
+    return {
+        data = processed,
+        hash = hash,
+        size = size
+    }
 end
 
 
----Encodes and compresses the given data, then sends it to the API if not already cached
-function express:_put( data, cb )
-    if table.Count( data ) == 0 then
-        error( "Express: Tried to send empty data!" )
-    end
+--- Sends the given data with Express
+--- Encodes and compresses the given data, then sends it to the API if not already cached
+function express:_put( struct, cb )
+    local size = struct.size
+    local hash = struct.hash
 
-    data = pon.encode( data )
-
-    if string.len( data ) > self._maxDataSize then
-        data = "<enc>" .. util.Compress( data )
-        assert( data, "Express: Failed to compress data!" )
-
-        local dataLen = string.len( data )
-        if dataLen > self._maxDataSize then
-            error( "Express: Data too large (" .. dataLen .. " bytes)" )
-        end
-    end
-
-    local hash = util.SHA1( data )
-
+    local now = os.time()
     local cached = self._putCache[hash]
+
     if cached then
-        local cachedAt = cached.cachedAt
+        if cached.complete then
+            local cachedAt = cached.cachedAt
 
-        if os.time() <= ( cachedAt + self._maxCacheTime ) then
-            -- Force the callback to run asynchronously for consistency
-            timer.Simple( 0, function()
-                cb( cached.id, hash )
-            end )
+            if now <= ( cachedAt + self._maxCacheTime ) then
+                local cachedSize = cached.size
+                local niceSize = string.NiceSize( cachedSize )
+                print( "Express: Using cached ID '" .. cached.id .. "' for hash '" .. hash .. "' (Saved you " .. niceSize .. "!)" )
 
+                -- Force the callback to run asynchronously for consistency
+                timer.Simple( 0, function()
+                    cb( cached.id, hash, cachedSize )
+                end )
+
+                return
+            end
+        else
+            table.insert( cached.waiting, cb )
             return
         end
     end
 
-    local function wrapCb( id )
-        self._putCache[hash] = { id = id, cachedAt = os.time() }
-        cb( id, hash )
+    local waiting = {}
+    local cacheItem = {
+        size = size,
+        waiting = waiting,
+        complete = false,
+        cachedAt = now
+    }
+    self._putCache[hash] = cacheItem
+
+    local function onComplete( id )
+        cacheItem.id = id
+        cacheItem.complete = true
+
+        local count = #waiting
+        for _ = 1, count do
+            table.remove( waiting )( id, hash, size )
+        end
+
+        cb( id, hash, size )
     end
 
     if self.access then
-        return self:Put( data, wrapCb )
+        return self:Put( struct.data, onComplete )
     end
 
     table.insert( self._waitingForAccess, function()
-        self:Put( data, wrapCb )
+        self:Put( struct.data, onComplete )
     end )
 end
 
 
--- TODO: Fix GLuaTest so we can actually test this function...
 -- Creates a contextual callback for the :_put endpoint, delaying the notification to the recipient(s) --
 function express:_putCallback( message, plys, onProof )
-    return function( id, hash )
+    return function( id, hash, size )
+        assert( id )
+        assert( hash )
+        assert( size )
+
         if onProof then
             self:SetExpected( hash, onProof, plys )
         end
 
-        -- Cloudflare isn't fulfilling their promise that the first lookup in
-        -- each region will "search" for the target key in K/V if it has't been cached yet.
-        -- This delay makes it more likely that the data will have "settled" into K/V before the first lookup
-        -- (Once it's cached as a 404, it'll stay that way for about 60 seconds)
-        timer.Simple( self.sendDelay:GetFloat(), function()
-            net.Start( "express" )
-            net.WriteString( message )
-            net.WriteString( id )
-            net.WriteBool( onProof ~= nil )
+        net.Start( "express" )
+        print( "Express: Sending message '" .. message .. "' to: ", plys )
+        net.WriteString( message )
+        net.WriteString( id )
+        net.WriteBool( onProof ~= nil )
 
-            express.shSend( plys )
-        end )
+        if SERVER then
+            net.WriteUInt( size, 27 )
+        end
+
+        express.shSend( plys )
     end
+end
+
+
+function express:_putSmall( struct, message, plys, onProof )
+    net.Start( "express_small" )
+    print( "Express: Sending NetStream message '" .. message .. "' to: ", plys )
+    net.WriteString( message )
+    net.WriteUInt( struct.size, 27 )
+    net.WriteBool( onProof ~= nil )
+    net.WriteStream( struct.data, onProof, true )
+    express.shSend( plys )
 end
 
 
 -- Calls the _put function with a contextual callback --
 function express:_send( message, data, plys, onProof )
-    self:_put( data, self:_putCallback( message, plys, onProof ) )
+    if not isstring( message ) then
+        error( "Express: Invalid message type '" .. type( message ) .. "'!", 2 )
+    end
+
+    if not (istable( data ) or isstring( data )) then
+        error( "Express: Invalid data type '" .. type( data ) .. "'!", 2 )
+    end
+
+    if SERVER then
+        if not (istable( plys ) or type( plys ) == "Player") then
+            error( "Express: Invalid player(s) type '" .. type( plys ) .. "'! (expected Player or table of Players)", 2 )
+        end
+    end
+
+    if onProof and not isfunction( onProof ) then
+        error( "Express: Invalid proof callback type '" .. type( onProof ) .. "'!", 2 )
+    end
+
+    local processed = express.processSendData( data )
+    local size = processed.size
+
+    if size < express.minSize:GetFloat() then
+        print( "Express: Message ('" .. message .. "') is too small to send with express. Falling back to NetStream:", string.NiceSize( size ) )
+        self:_putSmall( processed, message, plys, onProof )
+        return false
+    end
+
+    if size > express._maxDataSize then
+        error( "Express: Data too large (" .. size .. " bytes)" )
+    end
+
+    self:_put( processed, self:_putCallback( message, plys, onProof ) )
 end
 
 
@@ -228,7 +447,7 @@ end
 
 -- Returns a realm-specific timeout value for HTTP requests --
 function express:_getTimeout()
-    return CLIENT and 240 or 60
+    return self.timeout:GetFloat()
 end
 
 

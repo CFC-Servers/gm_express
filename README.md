@@ -99,8 +99,10 @@ Doing it this way comes with a number of practical benefits:
 
 Express works by storing the data you send on Cloudflare's Edge servers. Using Cloudflare workers, KV, and D1, Express can cheaply serve millions of requests and store hundreds of gigabytes per month. Cloudflare's Edge servers offer extremely low-latency requests and data access to every corner of the globe.
 
-By default, Express uses [gmod.express](https://gmod.express), the public and free API provided by CFC Servers, but anyone can easily host their own!
+By default, Express uses [gmod.express](https://gmod.express) , the public and free API provided by CFC Servers, but anyone can easily host their own!
 Check out the [Express Service](https://github.com/CFC-Servers/gm_express_service) README for more information.
+
+_(Note: [gmodexpress.com](https://gmodexpress.com) is an alias URL that might help if some clients get random HTTP failures to gmod.express)_
 
 ## Usage
 
@@ -360,6 +362,71 @@ RP.UpdateRules( newRules )
     RP.Rules = newRules
     express.Broadcast( "rp_rules", newRules )
 end
+```
+</details>
+
+<details>
+<summary><h4> <strong><img src="https://user-images.githubusercontent.com/7936439/200705110-55b19d08-b342-4e94-a7c3-6b45baf98c2b.png" width="15"> <code>express.Seed( table data, function onSeeded )</code></strong> </h4></summary>
+
+#### <ins>**Description**</ins>
+"Seeds" the given data, meaning you won't need to upload it right when you need it.
+This is useful if you generate data on server startup and need it available to download as soon as clients spawn in.
+
+Technically, this works by saving the hash of the data to the express send cache, so when you try to send it again it'll hit the send cache.
+
+#### <ins>**Arguments**</ins>
+1. **`table data`**
+    - The table to send
+    - This table can be of any size, in any order, with nearly any data type.
+2. **`function onSeeded( id string, hash string, niceSize string ) = nil`**
+    - Called when the data has been successfully seeded and is ready for clients to download
+    - This callback takes three parameters (you probably never need to read these):
+        - **`id string`**: The ID of the data in the express API
+        - **`hash string`**: The hash of the data
+        - **`niceSize string`**: A human-readable string of the data size
+
+#### <ins>**Example**</ins>
+Seed some data at startup and send it to players when they spawn.
+
+This includes a lot of failsafe code that makes absolutely sure the data reaches the clients when it's ready.
+Realistically, the data will probably upload so quickly that you don't need to worry about this.
+
+```lua
+-- Server
+local dataIsReady = false
+local pendingPlayers = {} -- In case players spawn before this data is ready
+
+local bigDataSet = buildBigDataSet()
+express.Seed( bigDataSet, function()
+    dataIsReady = true
+
+    -- Now that it's ready, send it to anyone who has been waiting for it
+    if #pendingPlayers > 0 then
+        express.Send( "big_data", bigDataSet, pendingPlayers )
+        pendingPlayers = nil
+    end
+end )
+
+hook.Add( "ExpressPlayerReceiver", "MyAddon_BigDataSender", function( ply, message )
+    if message ~= "big_data" then return end -- We only care about the receiver for our message
+
+    -- If we don't have the data ready yet (must be big!) then we'll send it to them when it's ready
+    if not dataIsReady then
+        table.insert( pendingPlayers, ply )
+        return
+    end
+
+    express.Send( "big_data", bigDataSet, ply )
+end )
+
+
+-- Client
+hook.Add( "ExpressLoaded", "MyAddon_ReceiveBigData", function()
+    express.Receive( "big_data", function( data )
+        print( "I got the data :)" )
+        processData( data )
+    end )
+end )
 ```
 </details>
 

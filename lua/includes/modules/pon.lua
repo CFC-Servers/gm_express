@@ -187,7 +187,9 @@ do
 	encode['Weapon']  = encode['Entity'];
 	encode['NPC']     = encode['Entity'];
 	encode['NextBot'] = encode['Entity'];
-	encode['PhysObj'] = encode['Entity'];
+	encode['PhysObj'] = function( self, val, output )
+		return encode['Entity']( self, val:GetEntity(), output )
+	end
 
 	encode['nil'] = function( _, _, output )
 		output[ #output + 1 ] = '?;';
