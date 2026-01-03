@@ -1,5 +1,17 @@
 # Express :bullettrain_side:
+<p align="left">
+    <a href="https://discord.gg/5JUqZjzmYJ" alt="Discord Invite"><img src="https://img.shields.io/discord/981394195812085770?label=Support&logo=discord&logoColor=white" /></a>
+</p>
+
 A lightning-fast networking library for Garry's Mod that allows you to quickly send large amounts of data between server/client with ease.
+
+<br>
+
+**FYI:** Please consider testing the next release, it has significant improvements over the base.
+Read more here: https://github.com/CFC-Servers/gm_express/pull/37
+
+<br>
+
 
 Seriously, it's really easy! Take a look:
 ```lua
@@ -66,6 +78,7 @@ end )
 ---
 
 </details>
+
 
 
 In this example, `huge_data_file.json` could be in excess of ~~100mb~~ _(soon)_ 25mb post-compression without Express even breaking a sweat.
@@ -493,10 +506,10 @@ end )
 We tested Express' performance against two other options:
  - **Manual Chunking**:
    - This is a bare-minimum example script that serializes, compresses, and splits the data up across as few net messages as possible. _(This is typically what people do in smaller addons.)_
-   - _[Source](https://gist.github.com/brandonsturgeon/2e73b6e4595dd4476d87494ba4cb73b0#file-sender_chunking-lua)_
+   - _[Source](https://gist.github.com/sarahsturgeon/2e73b6e4595dd4476d87494ba4cb73b0#file-sender_chunking-lua)_
  - **NetStream**:
    - This library is very popular. It's the go-to choice for sending large chunks of data. It's currently used by Starfall, PAC3, AdvDupe2, etc.
-   - _[Source](https://gist.github.com/brandonsturgeon/2e73b6e4595dd4476d87494ba4cb73b0#file-netstream-lua)_
+   - _[Source](https://gist.github.com/sarahsturgeon/2e73b6e4595dd4476d87494ba4cb73b0#file-netstream-lua)_
 
 #### Test Details
 <details>
@@ -513,8 +526,8 @@ For each test, we collected two key metrics:
 - **Message Count**: The number of net messages sent during the transfer. Fewer is usually better.
 
 **References**:
- - [This](https://gist.github.com/brandonsturgeon/15d195b2a5f8480c6579cc89816d2ac3) is an example of the data sets that we use during the test runs.
- - You can view the raw test setup [here](https://gist.github.com/brandonsturgeon/2e73b6e4595dd4476d87494ba4cb73b0).
+ - [This](https://gist.github.com/sarahsturgeon/15d195b2a5f8480c6579cc89816d2ac3) is an example of the data sets that we use during the test runs.
+ - You can view the raw test setup [here](https://gist.github.com/sarahsturgeon/2e73b6e4595dd4476d87494ba4cb73b0).
 </details>
 
 <details>
@@ -589,7 +602,7 @@ For each test, we collected two key metrics:
 
 <details>
 <summary><b>Test 5</b> <code>(11.96 KB)</code>:</summary>
-<b>Summary: </b>Because this payload only requires a single net mesage, Express falls way behind of the pack in terms of transfer speed.
+<b>Summary: </b>Because this payload only requires a single net message, Express falls way behind of the pack in terms of transfer speed.
 
 | Data Size | Compressed Size |
 | -------------- | -------------------- |
