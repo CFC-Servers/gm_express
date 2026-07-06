@@ -184,7 +184,7 @@ end
 
 
 function express.HTTP( tbl )
-    return (express.HTTP_Override or _G.HTTP)( tbl )
+    return ( express.HTTP_Override or _G.HTTP )( tbl )
 end
 
 

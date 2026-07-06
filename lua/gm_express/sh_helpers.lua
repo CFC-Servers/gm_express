@@ -2,7 +2,7 @@ AddCSLuaFile()
 express.version = 1
 express.revision = 1
 express._putCache = {}
-express._maxCacheTime = (24 - 1) * 60 * 60
+express._maxCacheTime = ( 24 - 1 ) * 60 * 60
 express._waitingForAccess = {}
 
 express.domain = CreateConVar(
@@ -75,7 +75,7 @@ end
 -- Creates a full URL with the given access token --
 function express:makeAccessURL( action, ... )
     local url = self:makeBaseURL()
-    local args = { action, self.access,  ... }
+    local args = { action, self.access, ... }
 
     return url .. "/" .. table.concat( args, "/" )
 end
@@ -393,12 +393,12 @@ function express:_send( message, data, plys, onProof )
         error( "Express: Invalid message type '" .. type( message ) .. "'!", 2 )
     end
 
-    if not (istable( data ) or isstring( data )) then
+    if not ( istable( data ) or isstring( data ) ) then
         error( "Express: Invalid data type '" .. type( data ) .. "'!", 2 )
     end
 
     if SERVER then
-        if not (istable( plys ) or type( plys ) == "Player") then
+        if not ( istable( plys ) or type( plys ) == "Player" ) then
             error( "Express: Invalid player(s) type '" .. type( plys ) .. "'! (expected Player or table of Players)", 2 )
         end
     end
