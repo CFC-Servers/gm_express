@@ -155,7 +155,7 @@ function express.OnSmallMessage( _, ply )
             -- FIXME: Still calls the onProof callbacak even if we exit early
             if shouldHalt then return end
 
-            express.HandleReceivedData( body, "", function( data )
+            express.HandleReceivedData( body, function( data )
                 express:Call( message, ply, data )
             end )
         end )
@@ -174,7 +174,6 @@ function express.OnProof( _, ply )
     -- Server prefixes the hash with the player's Steam ID
     local prefix = ply and ply:SteamID64() .. "-" or ""
     local hash = prefix .. net.ReadString()
-    print( "Received express proof", hash )
 
     local cb = express._awaitingProof[hash]
     if not cb then return end

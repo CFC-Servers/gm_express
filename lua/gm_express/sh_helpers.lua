@@ -137,11 +137,10 @@ function express.CheckRevision()
     } )
 end
 
-function express.HandleReceivedData( body, id, cb )
+function express.HandleReceivedData( body, cb )
     local hash = util.SHA1( body )
 
     if string.StartsWith( body, "<raw>" ) then
-        print( "Express: Returning raw data for ID '" .. id .. "'." )
         body = string.sub( body, 6 )
         return cb( body, hash )
     else
@@ -162,8 +161,6 @@ function express:Get( id, cb )
 
     local makeRequest
     local function success( code, body, responseHeaders )
-        -- print( "Express: GET " .. url .. " : " .. tostring( code ), headers.Range, "Attempts: " .. attempts )
-
         express._checkResponseCode( code )
 
         if attempts > 0 then
@@ -178,7 +175,7 @@ function express:Get( id, cb )
         if code == 206 then
             local _, _, fullSize = self.parseContentRange( responseHeaders["Content-Range"] )
             if #fullBody == fullSize then
-                return express.HandleReceivedData( fullBody, id, cb )
+                return express.HandleReceivedData( fullBody, cb )
             end
 
             rangeStart = rangeEnd + 1
@@ -188,7 +185,7 @@ function express:Get( id, cb )
 
         -- If we didn't receive a 206, then we should have received a 200 with the full file
         -- This will happen if the express server doesn't support Range headers
-        return express.HandleReceivedData( fullBody, id, cb )
+        return express.HandleReceivedData( fullBody, cb )
     end
 
     local function failure( reason )
@@ -211,7 +208,6 @@ function express:Get( id, cb )
             -- FIXME: This has the nice side effect of printing an engine warning in console!
             headers.Range = string.format( "bytes=%d-%d, 0-1", rangeStart, rangeEnd )
         end
-        print( "Express: Downloading chunk " .. rangeStart .. " to " .. rangeEnd .. " of " .. id )
 
         express._request( {
             method = "GET",
@@ -242,7 +238,6 @@ function express.processSendData( data )
     local processed = ""
 
     if istable( data ) then
-        print( "Express: Sending table data." )
         if table.Count( data ) == 0 then
             error( "Express: Tried to send empty data!" )
         end
@@ -258,7 +253,6 @@ function express.processSendData( data )
         processed = serialized
 
     elseif isstring( data ) then
-        print( "Express: Sending raw data." )
         if #data == 0 then
             error( "Express: Tried to send empty data!" )
         end
@@ -369,7 +363,6 @@ function express:_putCallback( message, plys, onProof )
         end
 
         net.Start( "express" )
-        print( "Express: Sending message '" .. message .. "' to: ", plys )
         net.WriteString( message )
         net.WriteString( id )
         net.WriteBool( onProof ~= nil )
@@ -385,7 +378,6 @@ end
 
 function express:_putSmall( struct, message, plys, onProof )
     net.Start( "express_small" )
-    print( "Express: Sending NetStream message '" .. message .. "' to: ", plys )
     net.WriteString( message )
     net.WriteUInt( struct.size, 27 )
     net.WriteBool( onProof ~= nil )
