@@ -142,13 +142,13 @@ function express.CheckRevision()
 end
 
 function express.HandleReceivedData( body, id, cb )
+    local hash = util.SHA1( body )
+
     if string.StartsWith( body, "<raw>" ) then
         print( "Express: Returning raw data for ID '" .. id .. "'." )
         body = string.sub( body, 6 )
-        local hash = util.SHA1( body )
         return cb( body, hash )
     else
-        local hash = util.SHA1( body )
         local decodedData = sfs.decode( body )
         return cb( decodedData, hash )
     end
