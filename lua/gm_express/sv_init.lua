@@ -23,7 +23,11 @@ function express.Seed( data, cb )
 
     if size < express.minSize:GetFloat() then
         print( "Express: Message is too small to seed with express (It will use NetStream)", string.NiceSize( size ) )
-        debug.Trace()
+
+        -- Force the callback to run asynchronously for consistency
+        timer.Simple( 0, function()
+            cb( nil, processed.hash, size )
+        end )
 
         return
     end
