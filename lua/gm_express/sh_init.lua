@@ -65,7 +65,7 @@ function express:Put( data, cb, onFailed )
             ["Accept"] = "application/json"
         },
         type = "application/octet-stream",
-        timeout = CLIENT and 240 or 60
+        timeout = self:_getTimeout()
     } )
 end
 
