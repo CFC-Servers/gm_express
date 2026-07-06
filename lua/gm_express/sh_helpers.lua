@@ -156,7 +156,8 @@ function express:Get( id, cb )
     local rangeStart = 0
     local rangeEnd = self.downloadChunkSize:GetInt()
 
-    local fullBody = ""
+    local chunks = {}
+    local receivedSize = 0
     local headers = table.Copy( self._bytesHeaders )
 
     local makeRequest
@@ -169,13 +170,14 @@ function express:Get( id, cb )
 
         -- We had a successful download, so reset the attempts
         attempts = 0
-        fullBody = fullBody .. body
+        table.insert( chunks, body )
+        receivedSize = receivedSize + #body
 
         -- If Range headers are supported on the server
         if code == 206 then
             local _, _, fullSize = self.parseContentRange( responseHeaders["Content-Range"] )
-            if #fullBody == fullSize then
-                return express.HandleReceivedData( fullBody, cb )
+            if receivedSize == fullSize then
+                return express.HandleReceivedData( table.concat( chunks ), cb )
             end
 
             rangeStart = rangeEnd + 1
@@ -185,7 +187,7 @@ function express:Get( id, cb )
 
         -- If we didn't receive a 206, then we should have received a 200 with the full file
         -- This will happen if the express server doesn't support Range headers
-        return express.HandleReceivedData( fullBody, cb )
+        return express.HandleReceivedData( table.concat( chunks ), cb )
     end
 
     local function failure( reason )
