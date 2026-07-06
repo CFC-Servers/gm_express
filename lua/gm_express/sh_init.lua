@@ -55,7 +55,7 @@ function express:Put( data, cb, onFailed )
         cb( response.id )
     end
 
-    self.HTTP( {
+    self._request( {
         method = "POST",
         url = self:makeAccessURL( "write" ),
         body = data,
@@ -186,6 +186,19 @@ end
 
 function express.HTTP( tbl )
     return ( express.HTTP_Override or _G.HTTP )( tbl )
+end
+
+
+-- express.HTTP wrapper with error catching
+function express._request( tbl )
+    local queued, reason = express.HTTP( tbl )
+    if queued then return queued end
+
+    if tbl.failed then
+        tbl.failed( reason or "failed to queue the HTTP request" )
+    end
+
+    return queued
 end
 
 

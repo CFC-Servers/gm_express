@@ -61,7 +61,7 @@ function express:GetSize( id, cb )
         error( "Express: Failed to get size for ID '" .. id .. "'. " .. reason )
     end
 
-    self.HTTP( {
+    self._request( {
         method = "GET",
         url = url,
         success = success,
@@ -116,7 +116,7 @@ function express.Register()
         net.Broadcast()
     end
 
-    express.HTTP( {
+    express._request( {
         url = url,
         method = "GET",
         success = success,

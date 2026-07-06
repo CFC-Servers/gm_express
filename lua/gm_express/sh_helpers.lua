@@ -125,7 +125,7 @@ function express.CheckRevision()
         end
     end
 
-    local madeRequest = express.HTTP( {
+    express._request( {
         url = url,
         method = "GET",
         success = success,
@@ -135,10 +135,6 @@ function express.CheckRevision()
         headers = express.jsonHeaders,
         timeout = express:_getTimeout()
     } )
-
-    if not madeRequest then
-        error( err( "HTTP request failed" ) )
-    end
 end
 
 function express.HandleReceivedData( body, id, cb )
@@ -217,7 +213,7 @@ function express:Get( id, cb )
         end
         print( "Express: Downloading chunk " .. rangeStart .. " to " .. rangeEnd .. " of " .. id )
 
-        express.HTTP( {
+        express._request( {
             method = "GET",
             url = url,
             headers = headers,
