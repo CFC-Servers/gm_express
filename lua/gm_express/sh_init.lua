@@ -39,19 +39,21 @@ end
 
 
 -- Given prepared data, sends it to the API --
-function express:Put( data, cb )
-    local success = function( code, body )
-        express._checkResponseCode( code )
-
-        local response = util.JSONToTable( body )
-        assert( response, "Invalid JSON" )
-        assert( response.id, "No ID returned" )
-
-        cb( response.id )
+function express:Put( data, cb, onFailed )
+    local failed = function( reason )
+        if onFailed then return onFailed( reason ) end
+        error( "Express: Failed to upload data: " .. reason )
     end
 
-    local failed = function( reason )
-        error( "Express: Failed to upload data: " .. reason )
+    local success = function( code, body )
+        local codeOk, codeErr = pcall( express._checkResponseCode, code )
+        if not codeOk then return failed( codeErr ) end
+
+        local response = util.JSONToTable( body )
+        if not response then return failed( "Invalid JSON" ) end
+        if not response.id then return failed( "No ID returned" ) end
+
+        cb( response.id )
     end
 
     self.HTTP( {

@@ -340,12 +340,23 @@ function express:_put( struct, cb )
         cb( id, hash, size )
     end
 
+    local function onFailed( reason )
+        self._putCache[hash] = nil
+
+        local dropped = #waiting
+        if dropped > 0 then
+            reason = reason .. " (dropped " .. dropped .. " queued sends)"
+        end
+
+        error( "Express: Failed to upload data: " .. reason )
+    end
+
     if self.access then
-        return self:Put( struct.data, onComplete )
+        return self:Put( struct.data, onComplete, onFailed )
     end
 
     table.insert( self._waitingForAccess, function()
-        self:Put( struct.data, onComplete )
+        self:Put( struct.data, onComplete, onFailed )
     end )
 end
 
