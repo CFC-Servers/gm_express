@@ -11,7 +11,6 @@ end
 express = {}
 express._receivers = {}
 express._protocol = "http"
-express._maxRetries = 35
 express._awaitingProof = {}
 express._preDlReceivers = {}
 express._maxDataSize = 100 * 1024 * 1024

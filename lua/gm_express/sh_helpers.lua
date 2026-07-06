@@ -14,7 +14,7 @@ express.downloadChunkSize = CreateConVar(
     "The size (in bytes) of each chunk downloaded from the Express server", 1
 )
 express.maxAttempts = CreateConVar(
-    "express_download_max_attempts", tostring( 12 ), FCVAR_ARCHIVE,
+    "express_download_max_attempts", tostring( 1 ), FCVAR_ARCHIVE,
     "How many times to retry downloading a file before giving up", 0
 )
 express.retryDelay = CreateConVar(
@@ -200,13 +200,13 @@ function express:Get( id, cb )
         if shouldHalt == true then return end
 
         -- Unsuccessful HTTP requests might succeed on a retry
-        if reason == "unsuccessful" then
+        if reason == "unsuccessful" and attempts < self.maxAttempts:GetInt() then
             print( "Express: Failed to download file '" .. url .. "': HTTP request failed. Retrying." )
             attempts = attempts + 1
-            makeRequest()
-        else
-            error( "Express: Failed to download file '" .. url .. "': " .. reason .. "\n" )
+            return timer.Simple( self.retryDelay:GetFloat(), makeRequest )
         end
+
+        error( "Express: Failed to download file '" .. url .. "': " .. reason .. "\n" )
     end
 
     makeRequest = function()
