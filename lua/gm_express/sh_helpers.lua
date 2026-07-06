@@ -423,10 +423,6 @@ function express:_send( message, data, plys, onProof )
         return false
     end
 
-    if size > express._maxDataSize then
-        error( "Express: Data too large (" .. size .. " bytes)" )
-    end
-
     self:_put( processed, self:_putCallback( message, plys, onProof ) )
 end
 

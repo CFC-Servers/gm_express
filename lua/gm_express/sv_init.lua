@@ -32,10 +32,6 @@ function express.Seed( data, cb )
         return
     end
 
-    if size > express._maxDataSize then
-        error( "Express: Data too large (" .. size .. " bytes)" )
-    end
-
     print( "Express: Seeding data with Express", string.NiceSize( size ) )
     express:_put( processed, cb )
 end
