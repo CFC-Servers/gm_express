@@ -125,7 +125,7 @@ function express.Register()
         method = "GET",
         success = success,
         failed = failed,
-        headers = express.jsonHeaders,
+        headers = express._jsonHeaders,
         timeout = express:_getTimeout()
     } )
 end

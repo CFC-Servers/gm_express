@@ -132,7 +132,7 @@ function express.CheckRevision()
         failed = function( message )
             error( err( message ) )
         end,
-        headers = express.jsonHeaders,
+        headers = express._jsonHeaders,
         timeout = express:_getTimeout()
     } )
 end
