@@ -1,9 +1,10 @@
 AddCSLuaFile()
 
-require( "pon" )
+require( "sfs" )
 if SERVER then
     util.AddNetworkString( "express" )
     util.AddNetworkString( "express_proof" )
+    util.AddNetworkString( "express_small" )
     util.AddNetworkString( "express_receivers_made" )
 end
 
@@ -12,9 +13,14 @@ express._receivers = {}
 express._protocol = "http"
 express._awaitingProof = {}
 express._preDlReceivers = {}
-express._maxDataSize = 24 * 1024 * 1024
-express._jsonHeaders = { ["Content-Type"] = "application/json" }
-express._bytesHeaders = { ["Accept"] = "application/octet-stream" }
+express._maxDataSize = 100 * 1024 * 1024
+express._jsonHeaders = {
+    ["Accept"] = "application/json",
+    ["Content-Type"] = "application/json"
+}
+express._bytesHeaders = {
+    ["Accept"] = "application/octet-stream"
+}
 
 
 -- Removes a receiver --
@@ -31,103 +37,35 @@ function express.ReceivePreDl( message, preDl )
 end
 
 
--- Retrieves and parses the data for given ID --
-function express:Get( id, cb, _attempts )
-    _attempts = _attempts or 0
-    local url = self:makeAccessURL( "read", id )
-
-    local success = function( code, body )
-        if code == 404 then
-            assert( _attempts <= 35, "express:Get() failed to retrieve data after 35 attempts: " .. id )
-            timer.Simple( 0.125 * _attempts, function()
-                self:Get( id, cb, _attempts + 1 )
-            end )
-            return
-        end
-
-        express._checkResponseCode( code )
-        if _attempts > 0 then
-            print( "express:Get() succeeded after " .. _attempts .. " attempts: " .. id )
-        end
-
-        if string.StartWith( body, "<enc>" ) then
-            body = util.Decompress( string.sub( body, 6 ) )
-            if ( not body ) or #body == 0 then
-                error( "Express: Failed to decompress data for ID '" .. id .. "'." )
-            end
-        end
-
-        local hash = util.SHA1( body )
-        local decodedData = pon.decode( body )
-        cb( decodedData, hash )
-    end
-
-    HTTP( {
-        method = "GET",
-        url = url,
-        success = success,
-        failed = error,
-        headers = self._bytesHeaders,
-        timeout = self:_getTimeout()
-    } )
-end
-
-
--- Asks the API for this ID's data's size --
-function express:GetSize( id, cb )
-    local url = self:makeAccessURL( "size", id )
-
-    local success = function( code, body )
-        express._checkResponseCode( code )
-
-        local sizeHolder = util.JSONToTable( body )
-        assert( sizeHolder, "Invalid JSON" )
-
-        local size = sizeHolder.size
-        if not size then
-            print( "Express: Failed to get size for ID '" .. id .. "'.", code )
-            print( body )
-        end
-        assert( size, "No size data" )
-
-        cb( tonumber( size ) )
-    end
-
-    HTTP( {
-        method = "GET",
-        url = url,
-        success = success,
-        failed = error,
-        headers = self._jsonHeaders,
-        timeout = self:_getTimeout()
-    } )
-end
-
-
 -- Given prepared data, sends it to the API --
-function express:Put( data, cb )
+function express:Put( data, cb, onFailed )
+    local failed = function( reason )
+        if onFailed then return onFailed( reason ) end
+        error( "Express: Failed to upload data: " .. reason )
+    end
+
     local success = function( code, body )
-        express._checkResponseCode( code )
+        local codeOk, codeErr = pcall( express._checkResponseCode, code )
+        if not codeOk then return failed( codeErr ) end
 
         local response = util.JSONToTable( body )
-        assert( response, "Invalid JSON" )
-        assert( response.id, "No ID returned" )
+        if not response then return failed( "Invalid JSON" ) end
+        if not response.id then return failed( "No ID returned" ) end
 
         cb( response.id )
     end
 
-    HTTP( {
+    self._request( {
         method = "POST",
         url = self:makeAccessURL( "write" ),
         body = data,
         success = success,
-        failed = error,
+        failed = failed,
         headers = {
-            ["Content-Length"] = #data,
             ["Accept"] = "application/json"
         },
         type = "application/octet-stream",
-        timeout = CLIENT and 240 or 60
+        timeout = self:_getTimeout()
     } )
 end
 
@@ -172,6 +110,7 @@ function express.OnMessage( _, ply )
             express:Call( message, ply, data )
 
             if not needsProof then return end
+
             net.Start( "express_proof" )
             net.WriteString( hash )
             express.shSend( ply )
@@ -179,10 +118,54 @@ function express.OnMessage( _, ply )
     end
 
     if express:_getPreDlReceiver( message ) then
-        return express:_getSize( id, makeRequest )
+        if SERVER then
+            -- Server decides for itself
+            return express:_getSize( id, makeRequest )
+        else
+            -- Clients trust the server
+            local size = net.ReadUInt( 27 )
+            return makeRequest( size )
+        end
     end
 
     makeRequest()
+end
+
+-- Handles a net message with data sent via NetStream
+function express.OnSmallMessage( _, ply )
+    local message = net.ReadString()
+
+    local hasReceiver = express:_getReceiver( message )
+
+    local id = "netstream:" .. message
+    local size = net.ReadUInt( 27 )
+    local needsProof = net.ReadBool()
+
+    if hasReceiver then
+        local shouldHalt = false
+
+        if express:_getPreDlReceiver( message ) then
+            local check = express:CallPreDownload( message, ply, id, size, needsProof )
+            if check == false then
+                shouldHalt = true
+            end
+        end
+
+        net.ReadStream( ply, function( body )
+            -- FIXME: Still calls the onProof callbacak even if we exit early
+            if shouldHalt then return end
+
+            express.HandleReceivedData( body, function( data )
+                express:Call( message, ply, data )
+            end )
+        end )
+    else
+        -- We have to read it even if we don't want it, otherwise it stays in the sender's WriteStreams
+        -- FIXME: This still calls the onProof callback if it's provided
+        net.ReadStream( ply, function()
+            error( "Express: Received a message that has no listener! (" .. message .. ")" )
+        end )
+    end
 end
 
 
@@ -195,13 +178,32 @@ function express.OnProof( _, ply )
     local cb = express._awaitingProof[hash]
     if not cb then return end
 
-    cb( ply )
+    ProtectedCall( cb, ply )
     express._awaitingProof[hash] = nil
+end
+
+
+function express.HTTP( tbl )
+    return ( express.HTTP_Override or _G.HTTP )( tbl )
+end
+
+
+-- express.HTTP wrapper with error catching
+function express._request( tbl )
+    local queued, reason = express.HTTP( tbl )
+    if queued then return queued end
+
+    if tbl.failed then
+        tbl.failed( reason or "failed to queue the HTTP request" )
+    end
+
+    return queued
 end
 
 
 net.Receive( "express", express.OnMessage )
 net.Receive( "express_proof", express.OnProof )
+net.Receive( "express_small", express.OnSmallMessage )
 
 include( "sh_helpers.lua" )
 
@@ -212,6 +214,21 @@ else
     include( "cl_init.lua" )
 end
 
-hook.Add( "CreateTeams", "ExpressLoaded", function()
-    hook.Run( "ExpressLoaded" )
-end  )
+do
+    local loaded = false
+    local function alertLoad()
+        loaded = true
+        hook.Run( "ExpressLoaded" )
+    end
+
+    -- FIXME: This doesn't work in all gamemodes, what should we use instead?
+    hook.Add( "CreateTeams", "ExpressLoaded", alertLoad )
+
+    -- A backup in case our CreateTeams hook is never called
+    hook.Add( "Think", "ExpressLoadedBackup", function()
+        hook.Remove( "Think", "ExpressLoadedBackup" )
+        if loaded then return end
+
+        alertLoad()
+    end )
+end
