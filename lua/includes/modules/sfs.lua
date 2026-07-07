@@ -8,8 +8,9 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ]]
 
-local next = next
 local pairs = pairs
+local type = type
+local getmetatable = getmetatable
 local table_concat = table.concat
 local math_floor = math.floor
 local math_ldexp = math.ldexp
@@ -23,55 +24,13 @@ local chars = {}; do
 end
 --
 
-local internal_type = _G.type
-local IsColor = IsColor
-local function type(v)
-    if IsColor and IsColor(v) then
-        return "Color"
-    end
-    return internal_type(v)
-end
-
-local function is_array(tbl)
-    local tbl_len = #tbl
-
-    -- eh, if it's empty then it doesn't matter if it's an array or not, still gonna take 1 byte if it's actually empty
-    if tbl_len == 0 then
-        return false
-    end
-
-    -- lua arrays are 1 indexed, but luajit arrays can be 0 indexed
-    if tbl[0] ~= nil then
-        return false
-    end
-
-    -- Check if there are no elements after the last index
-    if next(tbl, tbl_len) ~= nil then
-        return false
-    end
-
-    if tbl_len == 1 then
-        -- For tables with length 1, check if the first key is 1
-        if next(tbl) ~= 1 then
-            return false
-        end
-    elseif tbl_len > 1 then
-        -- For tables with length > 1, check if the key before the last is tbl_len
-        if next(tbl, tbl_len - 1) ~= tbl_len then
-            return false
-        end
-    end
-
-    return true
-end
-
 local TYPES = {}
 local new_type; do
     local type_count = -1
     function new_type(name, n)
         n = n or 1
         if type_count + n > 255 then
-            return error("types count cannot be more than 256")
+            error("types count cannot be more than 256", 2)
         end
 
         local start_type = type_count + 1
@@ -91,59 +50,76 @@ local new_type; do
 end
 
 -- Simple types
-    local NIL = new_type("nil")
-    local FALSE = new_type("false")
-    local TRUE  = new_type("true")
+local NIL                                      = new_type("nil")
+local FALSE                                    = new_type("false")
+local TRUE                                     = new_type("true")
 
-    local FLOAT = new_type("float")
-    local DOUBLE = new_type("double")
+local FLOAT                                    = new_type("float")
+local DOUBLE                                   = new_type("double")
 
-    -- Garry's Mod types
-    local ENTITY = new_type("entity")
-    local PLAYER = new_type("player")
-    local VECTOR = new_type("vector")
-    local ANGLE = new_type("angle")
-    local MATRIX = new_type("matrix")
-    local COLOR = new_type("color")
+-- Garry's Mod types
+local ENTITY                                   = new_type("entity")
+local PLAYER                                   = new_type("player")
+local VECTOR                                   = new_type("vector")
+local ANGLE                                    = new_type("angle")
+local MATRIX                                   = new_type("matrix")
+local COLOR                                    = new_type("color")
 
-    -- reserved for future use to not break backwards compatibility incase we need to add more types
-    local _ = new_type("reserved_1")
-    local _ = new_type("reserved_2")
-    local _ = new_type("reserved_3")
-    local _ = new_type("reserved_4")
+-- reserved for future use to not break backwards compatibility incase we need to add more types
+local _                                        = new_type("reserved_1")
+local _                                        = new_type("reserved_2")
+local _                                        = new_type("reserved_3")
+local _                                        = new_type("reserved_4")
 --
 
 --
-local POSITIVE_FIXED_START, POSITIVE_FIXED_MAX = new_type("positive_fixed", 102)
-local POSITIVE_U8 = new_type("positive_u8")
-local POSITIVE_U16 = new_type("positive_u16")
-local POSITIVE_U32 = new_type("positive_u32")
-local POSITIVE_U53 = new_type("positive_u53")
+local POSITIVE_FIXED_START, POSITIVE_FIXED_MAX = new_type("positive_fixed", 101)
+local POSITIVE_U8                              = new_type("positive_u8")
+local POSITIVE_U16                             = new_type("positive_u16")
+local POSITIVE_U32                             = new_type("positive_u32")
+local POSITIVE_U53                             = new_type("positive_u53")
 
 local NEGATIVE_FIXED_START, NEGATIVE_FIXED_MAX = new_type("negative_fixed", 55)
-local NEGATIVE_U8 = new_type("negative_u8")
-local NEGATIVE_U16 = new_type("negative_u16")
-local NEGATIVE_U32 = new_type("negative_u32")
-local NEGATIVE_U53 = new_type("negative_u53")
+local NEGATIVE_U8                              = new_type("negative_u8")
+local NEGATIVE_U16                             = new_type("negative_u16")
+local NEGATIVE_U32                             = new_type("negative_u32")
+local NEGATIVE_U53                             = new_type("negative_u53")
 
-local STRING_FIXED_START, STRING_FIXED_MAX = new_type("string_fixed", 56)
-local STRING_U8 = new_type("string_u8")
-local STRING_U16 = new_type("string_u16")
-local STRING_U32 = new_type("string_u32")
+local STRING_FIXED_START, STRING_FIXED_MAX     = new_type("string_fixed", 56)
+local STRING_U8                                = new_type("string_u8")
+local STRING_U16                               = new_type("string_u16")
+local STRING_U32                               = new_type("string_u32")
 
-local ARRAY = new_type("array")
+local ARRAY                                    = new_type("array")
 
-local TABLE = new_type("table")
+local TABLE                                    = new_type("table")
 
-local ENDING = new_type("ending") -- type used to end arrays and tables, can be used for custom types as well
+local ARRAY_AND_TABLE                          = new_type("array_and_table")
+
+local ENDING                                   = new_type("ending") -- type used to end arrays and tables, can be used for custom types as well
 --
 
 -- For user defined types
-local CUSTOM_START, CUSTOM_MAX = new_type("custom", 14)
+local CUSTOM_START, CUSTOM_MAX                 = new_type("custom", 14)
 --
 
+-- To tell Entity(0) (world) and NULL apart (since both have ent index 0), we use this (min i16 number) to represent NULL
+-- -1 = non networked entities
+-- 0 - 8192 = networked entities
+-- Thanks to Redox for reporting the -1 case and to RaphaelIT7 for explaining it
+local NULL_ENT_INDEX                           = -0x8000
+
+local STRING_TYPES                             = {
+    [STRING_U8] = true,
+    [STRING_U16] = true,
+    [STRING_U32] = true,
+}
+for i = 0, STRING_FIXED_MAX do
+    STRING_TYPES[STRING_FIXED_START + i] = true
+end
+
 local encoders = {}
-local Encoder = {
+local Encoder  = {
     encoders = encoders,
     ENDING = ENDING
 }
@@ -155,8 +131,17 @@ do
     end
     Encoder.write_str = write_str
 
+    local function get_encoder_impl(t)
+        local encoder = encoders[getmetatable(t)]
+        if encoder == nil then
+            encoder = encoders[type(t)]
+        end
+        return encoder
+    end
+    Encoder.get_encoder_impl = get_encoder_impl
+
     local function get_encoder(buf, t)
-        local encoder = encoders[type(t)]
+        local encoder = get_encoder_impl(t)
         if encoder == nil then
             write_str(buf, "unsupported type: ")
             write_str(buf, type(t))
@@ -222,6 +207,26 @@ do
     end
     Encoder.write_u53 = write_u53
 
+    local function write_i8(buf, num)
+        write_byte(buf, num % 0x100)
+    end
+    Encoder.write_i8 = write_i8
+
+    local function write_i16(buf, num)
+        write_u16(buf, num % 0x10000)
+    end
+    Encoder.write_i16 = write_i16
+
+    local function write_i32(buf, num)
+        write_u32(buf, num % 0x100000000)
+    end
+    Encoder.write_i32 = write_i32
+
+    local function write_i53(buf, num)
+        write_u53(buf, num % 0x20000000000000)
+    end
+    Encoder.write_i53 = write_i53
+
     local function write_varint(buf, tag, num)
         if num <= 255 then -- 0 - 255 (8 bits)
             write_byte(buf, tag)
@@ -245,13 +250,13 @@ do
         local u32 = 0
 
         if num == 0 then
-            u32 = 0x00000000 -- Positive zero
+            u32 = 0x00000000     -- Positive zero
             if 1 / num < 0 then
                 u32 = 0x80000000 -- Negative zero
             end
             write_u32(buf, u32)
             return u32
-        elseif num ~= num then  -- NaN check
+        elseif num ~= num then -- NaN check
             u32 = 0x7FFFFFFF
             write_u32(buf, u32)
             return u32
@@ -262,7 +267,7 @@ do
 
         if num == 1 / 0 then -- math.huge
             -- (sign << 31) + (0xFF << 23)
-            u32 = (sign * (2^31)) + (0xFF * (2^23))
+            u32 = (sign * (2 ^ 31)) + (0xFF * (2 ^ 23))
             write_u32(buf, u32)
             return u32
         end
@@ -271,7 +276,7 @@ do
         mantissa = mantissa * 2
         exponent = exponent - 1
 
-        local ieee_exponent = exponent + 127  -- IEEE 754 bias
+        local ieee_exponent = exponent + 127 -- IEEE 754 bias
         if ieee_exponent <= 0 then
             -- Handle subnormal numbers
             mantissa = math_ldexp(mantissa, ieee_exponent - 1)
@@ -284,15 +289,15 @@ do
 
         -- Scale mantissa to 23 bits and round
         local mantissa_bits = math_floor(
-            ((mantissa - 1) * (2^23)) + 0.5
+            ((mantissa - 1) * (2 ^ 23)) + 0.5
         )
 
         -- Ensure mantissa doesn't exceed 23 bits
-        mantissa_bits = mantissa_bits % (2^23)
+        mantissa_bits = mantissa_bits % (2 ^ 23)
 
         -- Combine all parts
         -- (sign << 31) | (ieee_exponent << 23) | mantissa_bits
-        u32 = (sign * (2^31)) + (ieee_exponent * (2^23)) + mantissa_bits
+        u32 = (sign * (2 ^ 31)) + (ieee_exponent * (2 ^ 23)) + mantissa_bits
 
         write_u32(buf, u32)
         return u32
@@ -324,7 +329,7 @@ do
 
         if num == 1 / 0 then -- Infinity
             -- (sign << 31) | (0x7FF << 20)
-            u32_1 = (sign * (2^31)) + (0x7FF * (2^20))
+            u32_1 = (sign * (2 ^ 31)) + (0x7FF * (2 ^ 20))
             write_u32(buf, u32_1)
             write_u32(buf, u32_2)
             return
@@ -335,21 +340,21 @@ do
         local ieee_exponent = exponent + 1022
         if ieee_exponent > 0 then
             -- Normal numbers
-            local mantissa_scaled = (mantissa * 2 - 1) * (2^52)
-            local mantissa_upper = math_floor(mantissa_scaled / (2^32)) -- (mantissa_scaled >> 32)
-            local mantissa_lower = mantissa_scaled % (2^32) -- (mantissa_scaled & 0xFFFFFFFF)
+            local mantissa_scaled = (mantissa * 2 - 1) * (2 ^ 52)
+            local mantissa_upper = math_floor(mantissa_scaled / (2 ^ 32)) -- (mantissa_scaled >> 32)
+            local mantissa_lower = mantissa_scaled % (2 ^ 32)             -- (mantissa_scaled & 0xFFFFFFFF)
 
             -- (sign << 31) | (ieee_exponent << 20) | (mantissa_upper % 2^20)
-            u32_1 = (sign * (2^31)) + (ieee_exponent * (2^20)) + (mantissa_upper % (2^20))
+            u32_1 = (sign * (2 ^ 31)) + (ieee_exponent * (2 ^ 20)) + (mantissa_upper % (2 ^ 20))
             u32_2 = mantissa_lower
         else
             -- Subnormal numbers
             local mantissa_scaled = mantissa * math_ldexp(1, 52 + ieee_exponent)
-            local mantissa_upper = math_floor(mantissa_scaled / (2^32)) -- (mantissa_scaled >> 32)
-            local mantissa_lower = mantissa_scaled % (2^32) -- (mantissa_scaled & 0xFFFFFFFF)
+            local mantissa_upper = math_floor(mantissa_scaled / (2 ^ 32)) -- (mantissa_scaled >> 32)
+            local mantissa_lower = mantissa_scaled % (2 ^ 32)             -- (mantissa_scaled & 0xFFFFFFFF)
 
             -- (sign << 31) | (mantissa_upper & 0xFFFFF)
-            u32_1 = (sign * (2^31)) + (mantissa_upper % (2^20))
+            u32_1 = (sign * (2 ^ 31)) + (mantissa_upper % (2 ^ 20))
             u32_2 = mantissa_lower
         end
 
@@ -460,11 +465,48 @@ do
     end
 
     encoders.table = function(buf, tbl)
-        if is_array(tbl) then
-            return encoders.array(buf, tbl)
+        -- save position where we'll write the tag
+        local tag_pos = buf[0] + 1
+        buf[0] = tag_pos
+        buf[tag_pos] = chars[ARRAY] -- assume array initially
+
+        local n = 0
+        local is_pure_array = true
+
+        for k, v in pairs(tbl) do
+            if is_pure_array then
+                -- check if this key breaks array assumption
+                if type(k) ~= "number" or k ~= n + 1 or k % 1 ~= 0 then
+                    -- if it's pure hash, then write as table directly
+                    if n == 0 then
+                        buf[tag_pos] = chars[TABLE]
+                    else
+                        buf[tag_pos] = chars[ARRAY_AND_TABLE]
+                        -- write ENDING to mark end of array part
+                        write_byte(buf, ENDING)
+                    end
+
+                    is_pure_array = false
+
+                    -- write current key-value (the one that broke the array)
+                    if write_value(buf, k) or write_value(buf, v) then
+                        return true
+                    end
+                else
+                    -- still an array
+                    n = n + 1
+                    if write_value(buf, v) then
+                        return true
+                    end
+                end
+            else
+                -- already in hash mode, write key-value
+                if write_value(buf, k) or write_value(buf, v) then
+                    return true
+                end
+            end
         end
-        write_byte(buf, TABLE)
-        write_table(buf, tbl)
+
         write_byte(buf, ENDING)
     end
 
@@ -497,7 +539,11 @@ do
     local Entity_EntIndex = FindMetaTable and FindMetaTable("Entity").EntIndex
     encoders.Entity = function(buf, ent)
         write_byte(buf, ENTITY)
-        write_u16(buf, Entity_EntIndex(ent))
+        if ent == NULL then
+            write_i16(buf, NULL_ENT_INDEX)
+        else
+            write_i16(buf, Entity_EntIndex(ent))
+        end
     end
 
     -- All of these are reported as their own type but are otherwise identical in handling to entities
@@ -545,13 +591,20 @@ do
         end
     end
 
-    encoders.Color = function(buf, col)
-        write_byte(buf, COLOR)
+    local COLOR_META = FindMetaTable and FindMetaTable("Color")
+    if COLOR_META then
+        encoders[COLOR_META] = function(buf, col)
+            write_byte(buf, COLOR)
 
-        write_u8(buf, math_floor(col.r))
-        write_u8(buf, math_floor(col.g))
-        write_u8(buf, math_floor(col.b))
-        write_u8(buf, math_floor(col.a))
+            write_u8(buf, math_floor(col.r))
+            write_u8(buf, math_floor(col.g))
+            write_u8(buf, math_floor(col.b))
+            write_u8(buf, math_floor(col.a))
+        end
+    end
+
+    -- function encoding will never be supported, so just skip it
+    encoders["function"] = function()
     end
 end
 
@@ -565,15 +618,14 @@ do
 
     -- Context Structure
     local context = {
-        1,      -- index
-        "",     -- bytes
-        0,      -- bytes length
-        1 / 0   -- max size for decode (math.huge)
+        1,    -- index
+        "",   -- bytes
+        0,    -- bytes length
+        1 / 0 -- max size for decode (math.huge)
     }
 
     local function peak_type(ctx)
-        local typ = string_byte(ctx[2], ctx[1])
-        return typ
+        return string_byte(ctx[2], ctx[1])
     end
     Decoder.peak_type = peak_type
 
@@ -609,19 +661,20 @@ do
 
     local function read_byte(ctx, size)
         local idx = ctx[1]
-        if idx + size - 1 > ctx[3] then -- ctx[3] bytes length
+        local end_idx = idx + size - 1
+        if end_idx > ctx[3] then
             return nil, "bytes underflow"
-        elseif idx + size - 1 > ctx[4] then -- ctx[4] max size
+        elseif end_idx > ctx[4] then
             return nil, "bytes overflow"
         end
-        ctx[1] = idx + size
-        return string_byte(ctx[2], idx, idx + size - 1)
+        ctx[1] = end_idx + 1
+        return string_byte(ctx[2], idx, end_idx)
     end
     Decoder.read_byte = read_byte
 
     local function read_str(ctx, size)
         local idx = ctx[1]
-        if idx + size - 1 > ctx[3] then -- ctx[3] bytes length
+        if idx + size - 1 > ctx[3] then     -- ctx[3] bytes length
             return nil, "bytes underflow"
         elseif idx + size - 1 > ctx[4] then -- ctx[4] max size
             return nil, "bytes overflow"
@@ -632,11 +685,11 @@ do
     Decoder.read_str = read_str
 
     local function read_u8(ctx)
-        local byt, err = read_byte(ctx, 1)
+        local bty, err = read_byte(ctx, 1)
         if err then
             return nil, err
         end
-        return byt
+        return bty
     end
     Decoder.read_u8 = read_u8
 
@@ -673,6 +726,34 @@ do
     end
     Decoder.read_u53 = read_u53
 
+    local function read_i8(ctx)
+        local u, err = read_u8(ctx); if err then return nil, err end
+        if u >= 0x80 then u = u - 0x100 end
+        return u
+    end
+    Decoder.read_i8 = read_i8
+
+    local function read_i16(ctx)
+        local u, err = read_u16(ctx); if err then return nil, err end
+        if u >= 0x8000 then u = u - 0x10000 end
+        return u
+    end
+    Decoder.read_i16 = read_i16
+
+    local function read_i32(ctx)
+        local u, err = read_u32(ctx); if err then return nil, err end
+        if u >= 0x80000000 then u = u - 0x100000000 end
+        return u
+    end
+    Decoder.read_i32 = read_i32
+
+    local function read_i53(ctx)
+        local u, err = read_u53(ctx); if err then return nil, err end
+        if u >= 0x10000000000000 then u = u - 0x20000000000000 end
+        return u
+    end
+    Decoder.read_i53 = read_i53
+
     local function read_float(ctx)
         local u32, err = read_u32(ctx)
         if err then
@@ -680,25 +761,25 @@ do
         end
 
         -- ((u32 >> 31) & 1) == 1 and -1 or 1
-        local sign = math_floor(u32 / (2^31)) % 2 == 1 and -1 or 1
+        local sign = math_floor(u32 / (2 ^ 31)) % 2 == 1 and -1 or 1
         -- (u32 >> 23) & 0xFF
-        local exponent_field = math_floor(u32 / (2^23)) % (2^8)
+        local exponent_field = math_floor(u32 / (2 ^ 23)) % (2 ^ 8)
         -- u32 & 0x7FFFFF
-        local mantissa = u32 % (2^23)
+        local mantissa = u32 % (2 ^ 23)
 
         if exponent_field == 0xFF then
             if mantissa == 0 then
-                return sign * (1 / 0)  -- math.huge
+                return sign * (1 / 0) -- math.huge
             end
-            return 0 / 0  -- NaN
+            return 0 / 0              -- NaN
         end
 
         if exponent_field == 0 and mantissa == 0 then
-            return sign * 0  -- Zero
+            return sign * 0 -- Zero
         end
 
         -- mantissa >> 23
-        local mantissa_scaled = mantissa / (2^23)
+        local mantissa_scaled = mantissa / (2 ^ 23)
 
         if exponent_field ~= 0 then
             -- Normal numbers
@@ -722,25 +803,25 @@ do
         if err then return nil, err end
 
         -- ((u32_1 >> 31) & 1) == 1 and -1 or 1
-        local sign = math_floor(u32_1 / (2^31)) % 2 == 1 and -1 or 1
+        local sign = math_floor(u32_1 / (2 ^ 31)) % 2 == 1 and -1 or 1
         -- (u32_1 >> 20) & 0x7FF
-        local exponent_field = math_floor(u32_1 / (2^20)) % (2^11)
+        local exponent_field = math_floor(u32_1 / (2 ^ 20)) % (2 ^ 11)
         -- u32_1 & 0xFFFFF
-        local mantissa_upper = u32_1 % (2^20)
+        local mantissa_upper = u32_1 % (2 ^ 20)
 
         if exponent_field == 0x7FF then
             if mantissa_upper == 0 and u32_2 == 0 then
-                return sign * (1 / 0)  -- math.huge
+                return sign * (1 / 0) -- math.huge
             end
-            return 0 / 0  -- NaN
+            return 0 / 0              -- NaN
         end
 
         if exponent_field == 0 and mantissa_upper == 0 and u32_2 == 0 then
-            return sign * 0  -- Zero
+            return sign * 0 -- Zero
         end
 
         -- mantissa_upper << 32 + u32_2
-        local mantissa_scaled = mantissa_upper * (2^32) + u32_2
+        local mantissa_scaled = mantissa_upper * (2 ^ 32) + u32_2
 
         if exponent_field ~= 0 then
             -- Normal numbers
@@ -756,7 +837,7 @@ do
     Decoder.read_double = read_double
 
     local function read_array(ctx, till)
-        local arr = {nil, nil, nil, nil, nil, nil, nil, nil, nil, nil} -- initialize with size of 10
+        local arr = { nil, nil, nil, nil, nil, nil, nil, nil, nil, nil } -- initialize with size of 10
         local size = 0
         while peak_type(ctx) ~= till do
             local val, err = read_value(ctx)
@@ -772,7 +853,7 @@ do
     Decoder.read_array = read_array
 
     local function read_table(ctx, till)
-        local tbl = {nil, nil, nil, nil, nil, nil, nil, nil, nil, nil} -- initialize with size of 10
+        local tbl = { nil, nil, nil, nil, nil, nil, nil, nil, nil, nil } -- initialize with size of 10
         while peak_type(ctx) ~= till do
             local key, val, err
             key, err = read_value(ctx)
@@ -860,9 +941,12 @@ do
     local Entity = Entity
     decoders[ENTITY] = function(ctx)
         ctx[1] = ctx[1] + 1
-        local ent_idx, err = read_u16(ctx)
+        local ent_idx, err = read_i16(ctx)
         if err then
             return nil, err
+        end
+        if ent_idx == NULL_ENT_INDEX then
+            return NULL
         end
         return Entity(ent_idx)
     end
@@ -1078,14 +1162,36 @@ do
         return tbl
     end
 
-    --
-    decoders[STRING_FIXED_START] = function(ctx)
-        local byt, str, err
+    decoders[ARRAY_AND_TABLE] = function(ctx)
+        ctx[1] = ctx[1] + 1
 
-        byt, err = read_byte(ctx, 1)
+        -- array part first
+        local arr, err = read_array(ctx, ENDING)
         if err then return nil, err end
 
-        local str_len = byt - STRING_FIXED_START
+        -- hash part
+        while peak_type(ctx) ~= ENDING do
+            local key, val
+            key, err = read_value(ctx)
+            if err then return nil, err end
+            val, err = read_value(ctx)
+            if err then return nil, err end
+            arr[key] = val
+        end
+
+        ctx[1] = ctx[1] + 1 -- skip final ENDING
+        return arr
+    end
+
+
+    --
+    decoders[STRING_FIXED_START] = function(ctx)
+        local bty, str, err
+
+        bty, err = read_byte(ctx, 1)
+        if err then return nil, err end
+
+        local str_len = bty - STRING_FIXED_START
 
         str, err = read_str(ctx, str_len)
         if err then return nil, err end
@@ -1099,12 +1205,12 @@ do
     --
     --
     decoders[POSITIVE_FIXED_START] = function(ctx)
-        local byt, num, err
+        local bty, num, err
 
-        byt, err = read_byte(ctx, 1)
+        bty, err = read_byte(ctx, 1)
         if err then return nil, err end
 
-        num = byt - POSITIVE_FIXED_START
+        num = bty - POSITIVE_FIXED_START
         return num
     end
 
@@ -1115,12 +1221,12 @@ do
 
     --
     decoders[NEGATIVE_FIXED_START] = function(ctx)
-        local byt, num, err
+        local bty, num, err
 
-        byt, err = read_byte(ctx, 1)
+        bty, err = read_byte(ctx, 1)
         if err then return nil, err end
 
-        num = byt - NEGATIVE_FIXED_START
+        num = bty - NEGATIVE_FIXED_START
         return -num
     end
 
@@ -1128,19 +1234,14 @@ do
         decoders[NEGATIVE_FIXED_START + i] = decoders[NEGATIVE_FIXED_START]
     end
     --
-end
 
-local function can_encode(val)
-    local t = type(val)
-    if t == "table" then
-        for k, v in pairs(val) do
-            if not can_encode(k) or not can_encode(v) then
-                return false
-            end
+    decoders.string = function(ctx)
+        local bty = peak_type(ctx)
+        if not STRING_TYPES[bty] then
+            return nil, "expected string type"
         end
-        return true
+        return read_value(ctx)
     end
-    return encoders[t] ~= nil
 end
 
 local encode_to_hex, decode_from_hex; do
@@ -1191,6 +1292,7 @@ end
 
 _G.sfs = {
     TYPES = TYPES,
+    STRING_TYPES = STRING_TYPES,
 
     Encoder = Encoder, -- to allow usage of internal functions
     Decoder = Decoder, -- to allow usage of internal functions
@@ -1217,36 +1319,33 @@ _G.sfs = {
         type = t_fn
     end,
 
-    add_custom_type = function(typ, encoder, decoder)
+    add_custom_type = function(ty, encoder, decoder)
         if CUSTOM_START == CUSTOM_MAX then
             return error("cannot add more custom types")
         end
 
-        if encoders[typ] or decoders[typ] then
+        if encoders[ty] or decoders[ty] then
             -- this just prints incase you mistakenly add a type that already exists
-            ErrorNoHaltWithStack("type already exists: `" .. typ .. "`")
+            ErrorNoHaltWithStack("type already exists: `" .. ty .. "`")
         end
 
-        encoders[typ] = encoder
+        encoders[ty] = encoder
         decoders[CUSTOM_START] = decoder
 
         CUSTOM_START = CUSTOM_START + 1
         return CUSTOM_START - 1
     end,
 
-    set_custom_type_with_id = function(id, typ, encoder, decoder)
-        if encoders[typ] or decoders[typ] then
+    set_custom_type_with_id = function(id, ty, encoder, decoder)
+        if encoders[ty] or decoders[ty] then
             -- this just prints incase you mistakenly add a type that already exists
-            ErrorNoHaltWithStack("type already exists: `" .. typ .. "`")
+            ErrorNoHaltWithStack("type already exists: `" .. ty .. "`")
         end
 
-        encoders[typ] = encoder
+        encoders[ty] = encoder
         decoders[id] = decoder
     end,
 
-    can_encode = can_encode,
-
     chars = chars,
-    VERSION = "4.0.0"
+    VERSION = "7.0.9"
 }
-
