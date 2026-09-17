@@ -81,22 +81,30 @@ function express.CheckRevision()
 
     local url = express:makeBaseURL() .. "/revision"
     local success = function( body, _, _, code )
-        assert( code >= 200 and code < 300, err( "Invalid response code (" .. code .. ")" ) )
+        if code < 200 or code >= 300 then
+            print( err( "Invalid response code (" .. code .. ")" ) )
+            return
+        end
 
         local dataHolder = util.JSONToTable( body )
-        assert( dataHolder, err( "Invalid JSON response" ) )
+        if not dataHolder then
+            print( err( "Invalid JSON response" .. body ) )
+            return
+        end
 
         local revision = dataHolder.revision
-        assert( revision, err( "Invalid JSON response" ) )
+        if not revision then
+            print( err( "Revision missing in JSON response" .. body ) )
+        end
 
         local current = express.revision
         if revision ~= current then
-            error( err( "Revision mismatch! Expected " .. current .. ", got " .. revision ) )
+            print( err( "Revision mismatch! Expected " .. current .. ", got " .. revision ) )
         end
     end
 
     http.Fetch( url, success, function( message )
-        error( err( message ) )
+        print( err( message ) )
     end, express.jsonHeaders )
 end
 
