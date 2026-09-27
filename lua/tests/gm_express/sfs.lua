@@ -1,8 +1,8 @@
 return {
-    groupName = "pON",
+    groupName = "SFS",
 
-    beforeAll = function()
-        require( "pon" )
+    beforeAll = function( state )
+        state.sfs = require( "sfs" )
     end,
 
     beforeEach = function( state )
@@ -15,23 +15,23 @@ return {
     cases = {
         {
             name = "It loads properly",
-            func = function()
-                expect( pon ).to.exist()
+            func = function( state )
+                expect( state.sfs ).to.exist()
             end
         },
 
         {
             name = "It encodes a table",
             func = function( state )
-                expect( pon.encode, state.tbl ).to.succeed()
+                expect( state.sfs.encode, state.tbl ).to.succeed()
             end
         },
 
         {
-            name = "It decodes a pON string",
+            name = "It decodes an SFS string",
             func = function( state )
-                local encoded = pon.encode( state.tbl )
-                expect( pon.decode, encoded ).to.succeed()
+                local encoded = state.sfs.encode( state.tbl )
+                expect( state.sfs.decode, encoded ).to.succeed()
             end
         }
     }

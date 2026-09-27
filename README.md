@@ -623,4 +623,4 @@ https://user-images.githubusercontent.com/7936439/202298284-bea90b54-c0b9-440b-b
 
 
 ## Credits
-A big thanks to [@thelastpenguin](https://github.com/thelastpenguin) for his [super fast pON encoder](https://github.com/thelastpenguin/gLUA-Library/blob/master/pON/pON-developmental.lua) that lets Express quickly serialize almost every GMod object into a compact message.
+A big thanks to [@Srlion](https://github.com/Srlion) for his [SFS binary serializer](https://github.com/Srlion/sfs) that lets Express quickly serialize almost every GMod object into a compact message.

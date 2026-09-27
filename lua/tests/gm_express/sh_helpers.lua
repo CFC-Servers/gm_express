@@ -386,7 +386,7 @@ return {
                 state.original_access = state.original_access or express.access
                 express.access = "access-token"
 
-                local encode = stub( pon, "encode" ).returns( "encoded-data" )
+                local encode = stub( express._sfs, "encode" ).returns( "encoded-data" )
                 local compress = stub( util, "Compress" ).returns( "hello" )
                 local putStub = stub( express, "Put" )
 
@@ -411,7 +411,7 @@ return {
                 state.original_access = state.original_access or express.access
                 express.access = "access-token"
 
-                local encode = stub( pon, "encode" ).returns( "encoded-data" )
+                local encode = stub( express._sfs, "encode" ).returns( "encoded-data" )
                 local compress = stub( util, "Compress" ).returns( "hello" )
                 local putStub = stub( express, "Put" )
 
@@ -439,7 +439,7 @@ return {
                 state.original_access = state.original_access or express.access
                 express.access = nil
 
-                local encode = stub( pon, "encode" ).returns( "encoded-data" )
+                local encode = stub( express._sfs, "encode" ).returns( "encoded-data" )
                 local compress = stub( util, "Compress" ).returns( "hello" )
                 local putStub = stub( express, "Put" )
 
@@ -470,7 +470,7 @@ return {
                 local expectedBytes = #( "<enc>" .. mockData )
                 local putStub = stub( express, "Put" )
 
-                stub( pon, "encode" ).returns( mockData )
+                stub( express._sfs, "encode" ).returns( mockData )
                 stub( util, "Compress" ).returns( mockData )
 
                 expect( express._put, express, { "data" }, stub() ).to.errWith(
@@ -504,7 +504,7 @@ return {
                     cachedAt = os.time()
                 }
 
-                stub( pon, "encode" ).returns( "encoded-data" )
+                stub( express._sfs, "encode" ).returns( "encoded-data" )
                 stub( util, "Compress" ).returns( mockData )
                 stub( util, "SHA1" ).returns( mockHash )
 
@@ -538,7 +538,7 @@ return {
                     cb( mockId )
                 end )
 
-                stub( pon, "encode" ).returns( "encoded-data" )
+                stub( express._sfs, "encode" ).returns( "encoded-data" )
                 stub( util, "Compress" ).returns( mockData )
                 stub( util, "SHA1" ).returns( mockHash )
 

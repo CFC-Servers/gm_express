@@ -140,7 +140,11 @@ function express:_put( data, cb )
         error( "Express: Tried to send empty data!" )
     end
 
-    data = pon.encode( data )
+    local err
+    data, err = self._sfs.encode( data )
+    if err then
+        error( "Express: Failed to encode data: " .. err )
+    end
 
     if string.len( data ) > self._maxDataSize then
         data = "<enc>" .. util.Compress( data )

@@ -129,7 +129,7 @@ return {
             func = function()
                 stub( util, "SHA1" ).returns( "test-hash" )
                 stub( util, "Decompress" ).returns( "test-data" )
-                stub( pon, "decode" ).returns( {} )
+                stub( express._sfs, "decode" ).returns( {} )
 
                 local callback = stub()
 

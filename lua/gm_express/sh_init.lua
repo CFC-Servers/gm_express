@@ -1,13 +1,14 @@
 AddCSLuaFile()
 
-require( "pon" )
+express = {}
+express._sfs = include( "includes/modules/sfs.lua" )
+
 if SERVER then
     util.AddNetworkString( "express" )
     util.AddNetworkString( "express_proof" )
     util.AddNetworkString( "express_receivers_made" )
 end
 
-express = {}
 express._receivers = {}
 express._protocol = "http"
 express._awaitingProof = {}
@@ -58,7 +59,12 @@ function express:Get( id, cb, _attempts )
         end
 
         local hash = util.SHA1( body )
-        local decodedData = pon.decode( body )
+
+        local decodedData, err = express._sfs.decode( body )
+        if err then
+            error( "Express: Failed to decode data: " .. err )
+        end
+
         cb( decodedData, hash )
     end
 
