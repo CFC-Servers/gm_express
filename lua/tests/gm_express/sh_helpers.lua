@@ -558,6 +558,30 @@ return {
             end
         },
 
+        -- express._prunePutCache
+        {
+            name = "express._prunePutCache removes expired entries and keeps fresh ones",
+            func = function( state )
+                state.original_putCache = express._putCache
+
+                local now = os.time()
+                express._putCache = {
+                    ["stale"] = { id = "stale-id", cachedAt = now - express._maxCacheTime - 1 },
+                    ["fresh"] = { id = "fresh-id", cachedAt = now }
+                }
+
+                express._prunePutCache()
+
+                expect( express._putCache["stale"] ).to.beNil()
+                expect( express._putCache["fresh"] ).to.exist()
+                expect( express._putCache["fresh"].id ).to.equal( "fresh-id" )
+            end,
+
+            cleanup = function( state )
+                express._putCache = state.original_putCache
+            end
+        },
+
         -- express:_getSize
         {
             name = "express:_getSize calls express:GetSize if access token is set",

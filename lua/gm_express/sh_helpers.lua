@@ -2,7 +2,7 @@ AddCSLuaFile()
 express.version = 1
 express.revision = 1
 express._putCache = {}
-express._maxCacheTime = ( 24 - 1 ) * 60 * 60 -- TODO: Get this from the server, similar to the version check
+express._maxCacheTime = 15 * 60
 express._waitingForAccess = {}
 express.domain = CreateConVar(
     "express_domain", "gmod.express", FCVAR_ARCHIVE + FCVAR_REPLICATED, "The domain of the Express server"
@@ -181,6 +181,20 @@ function express:_put( data, cb )
         self:Put( data, wrapCb )
     end )
 end
+
+
+-- Removes expired entries from the put cache so its memory use stays bounded --
+function express._prunePutCache()
+    local now = os.time()
+
+    for hash, cached in pairs( express._putCache ) do
+        if now > ( cached.cachedAt + express._maxCacheTime ) then
+            express._putCache[hash] = nil
+        end
+    end
+end
+
+timer.Create( "Express_PutCachePrune", 300, 0, express._prunePutCache )
 
 
 -- TODO: Fix GLuaTest so we can actually test this function...
