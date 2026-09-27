@@ -66,7 +66,9 @@ function express:Get( id, cb, _attempts )
         method = "GET",
         url = url,
         success = success,
-        failed = error,
+        failed = function( reason )
+            error( "express:Get() failed with reason: " .. tostring( reason ) )
+        end,
         headers = self._bytesHeaders,
         timeout = self:_getTimeout()
     } )
@@ -97,7 +99,9 @@ function express:GetSize( id, cb )
         method = "GET",
         url = url,
         success = success,
-        failed = error,
+        failed = function( reason )
+            error( "express:GetSize() failed with reason: " .. tostring( reason ) )
+        end,
         headers = self._jsonHeaders,
         timeout = self:_getTimeout()
     } )
@@ -121,7 +125,9 @@ function express:Put( data, cb )
         url = self:makeAccessURL( "write" ),
         body = data,
         success = success,
-        failed = error,
+        failed = function( reason )
+            error( "express:Put() failed with reason: " .. tostring( reason ) )
+        end,
         headers = {
             ["Content-Length"] = #data,
             ["Accept"] = "application/json"
